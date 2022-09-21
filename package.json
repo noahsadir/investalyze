@@ -1,0 +1,11 @@
+{
+  "main": "app.ts",
+  "dependencies": {
+    "express": "^4.18.1",
+    "typescript": "^4.6.4"
+  },
+  "scripts": {
+    "compile": "tsc --project ./",
+    "start": "npm run compile && nodemon ./dist/app.js"
+  }
+}
