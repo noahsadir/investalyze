@@ -77,13 +77,44 @@ function tradierOptionsChain(symbol: string, expiration: string, api_key: string
 }
 
 /**
+ * Get options chain for the given symbol at the specified expiration date.
+ */
+function tradierSymbolQuote(symbol: string, api_key: string, callback: (status: number, data: any) => void) {
+  var url: string = 'https://sandbox.tradier.com/v1/markets/quotes?symbols=' + symbol;
+  fetchTradierJSON(url, api_key, (trdStat: number, trdData: any) => {
+    if (trdStat == 200) {
+      if (trdData.quotes != null && trdData.quotes.quote != null) {
+        var quote: any = trdData.quotes.quote;
+        callback(200, {
+          symbol: quote.symbol,
+          name: quote.description,
+          spot_price: quote.last
+        });
+      } else {
+        callback(500, {
+          success: false,
+          message: "Error fetching quote.",
+          error: "ERR_QUOTE_FETCH",
+          details: trdData
+        });
+      }
+    } else {
+      callback(trdStat, trdData);
+    }
+  });
+}
+
+/**
  * Format Tradier data to generic format accepted by client
  * Doing this allows for us to change the data source without breaking the whole
  * program or requiring a massive rewrite.
  */
-function formatChain(data: any[]) {
+function formatChain(data: any[], spot_price: number) {
   // lookup contains contract IDs indexed by date and strike
   // contracts contains data for each individual contract
+
+  const fetch_date: number = Date.now();
+
   var output: any = {
     lookup: {
       byExpiration: {
@@ -95,7 +126,9 @@ function formatChain(data: any[]) {
     },
     contracts: {
 
-    }
+    },
+    fetch_date: fetch_date,
+    spot_price: spot_price
   };
 
   for (var index in data) {
@@ -118,9 +151,17 @@ function formatChain(data: any[]) {
     output.lookup.byExpiration[expirationDate][optionType].push(symbol);
     output.lookup.byStrike[strike][optionType].push(symbol);
 
+    const calculated_expiration: number = Date.parse(rawContractData.expiration_date);
+    const calculated_mark: number = calculateMark(rawContractData.bid, rawContractData.ask);
+    const calculated_intrinsic: number = calculateIntrinsic(rawContractData.option_type, rawContractData.strike, spot_price);
+    const calculated_extrinsic: number = calculateExtrinsic(calculated_intrinsic, calculated_mark);
+    const calculated_leverage_ratio: number = calculateLeverageRatio(rawContractData.greeks.delta, calculated_mark, spot_price);
+    const calculated_interest_equivalent: number = calculateInterestEquivalent(rawContractData.greeks.delta, calculated_expiration, fetch_date, calculated_leverage_ratio, calculated_extrinsic, spot_price);
+
     // add contract data entry
     output.contracts[symbol] = {
       expiration_date_string: rawContractData.expiration_date,
+      expiration_date_integer_millis: calculated_expiration,
       strike: rawContractData.strike,
       option_type: rawContractData.option_type,
       bid: rawContractData.bid,
@@ -134,10 +175,67 @@ function formatChain(data: any[]) {
       volume: rawContractData.volume,
       open_interest: rawContractData.open_interest,
       trade_date_integer_millis: rawContractData.trade_date,
+      delta: rawContractData.greeks.delta,
+      gamma: rawContractData.greeks.gamma,
+      theta: rawContractData.greeks.theta,
+      rho: rawContractData.greeks.rho,
+      vega: rawContractData.greeks.vega,
+      implied_volatility: rawContractData.greeks.mid_iv,
+      smooth_implied_volatility: rawContractData.greeks.smv_vol,
+      mark: calculated_mark,
+      intrinsic_value: calculated_intrinsic,
+      extrinsic_value: calculated_extrinsic,
+      leverage_ratio: calculated_leverage_ratio,
+      interest_equivalent: calculated_interest_equivalent
     };
   }
 
   return output;
+}
+
+function calculateMark(bid: number, ask: number) {
+  if (!isNaN(bid) && !isNaN(ask)) {
+    return Math.round(((bid + ask) / 2) * 100) / 100;
+  } else if (!isNaN(bid)) {
+    return bid;
+  } else if (!isNaN(ask)) {
+    return ask;
+  }
+  return undefined;
+}
+
+function calculateIntrinsic(type: string, strike: number, spot: number) {
+  var intrinsic: number = 0;
+  if (type == "call") {
+    intrinsic = spot - strike;
+  } else if (type == "put") {
+    intrinsic = strike - spot;
+  } else {
+    return undefined;
+  }
+  return (intrinsic > 0) ? intrinsic : 0;
+}
+
+function calculateExtrinsic(intrinsic: number, mark: number) {
+  if (!isNaN(intrinsic) && !isNaN(mark)) {
+    return mark - intrinsic;
+  }
+  return undefined;
+}
+
+function calculateLeverageRatio(delta: number, mark: number, spot: number) {
+  if (!isNaN(mark)) {
+    return ((spot * delta) - mark) / mark;
+  }
+  return undefined;
+}
+
+function calculateInterestEquivalent(delta: number, exp_millis: number, fetch_millis: number, leverage_ratio: number, extrinsic: number, spot: number) {
+  if (!isNaN(extrinsic) && !isNaN(leverage_ratio)) {
+    const annual_extrinsic = extrinsic * (365.25 / ((exp_millis - fetch_millis) / 86400000));
+    return annual_extrinsic / (spot * delta * leverage_ratio);
+  }
+  return undefined;
 }
 
 /**
@@ -149,54 +247,62 @@ app.post('/api/options_chain', (req, res) => {
   if (body.symbol != null && body.api_key != null) {
     var allContracts: any = {};
 
-    // get all expiration dates
-    tradierExpirations(body.symbol, body.api_key, (status: number, data: any) => {
-      if (status == 200 && data.expirations != null) {
-        var responseCount: number = 0;
-        for (var index in data.expirations) {
-          var expDate: string = data.expirations[index];
-          tradierOptionsChain(body.symbol, expDate, body.api_key, (ocStat: number, ocData: any) => {
+    tradierSymbolQuote(body.symbol, body.api_key, (quoteStatus: number, quoteData: any) => {
+      if (quoteStatus == 200) {
+        // get all expiration dates
+        tradierExpirations(body.symbol, body.api_key, (status: number, data: any) => {
+          if (status == 200 && data.expirations != null) {
+            var responseCount: number = 0;
+            for (var index in data.expirations) {
+              var expDate: string = data.expirations[index];
+              tradierOptionsChain(body.symbol, expDate, body.api_key, (ocStat: number, ocData: any) => {
 
-            // if successful, add data to output
-            // otherwise, throw an error
-            if (ocStat == 200) {
-              responseCount += 1;
-              //allContracts.concat(ocData.chain);
-              allContracts[ocData.expiration] = ocData.chain;
-            } else {
-              res.status(500);
-              res.json({success: false, message: "Error fetching options chain.", error: "ERR_OPTIONSCHAIN_FETCH", details: ocData})
-            }
-
-            // all options chain fetches were successful; return full chain
-            if (responseCount == Object.keys(data.expirations).length) {
-
-              // Arrage contracts in order of date
-              // https://www.w3docs.com/snippets/javascript/how-to-sort-javascript-object-by-key.html
-              allContracts = Object.keys(allContracts).sort().reduce(function (result, key) {
-                result[key] = allContracts[key];
-                return result;
-              }, {});
-
-              /**/
-              var flattenedContracts: any[] = [];
-              for (var expInd in allContracts) {
-                for (var conInd in allContracts[expInd]) {
-                  flattenedContracts.push(allContracts[expInd][conInd]);
+                // if successful, add data to output
+                // otherwise, throw an error
+                if (ocStat == 200) {
+                  responseCount += 1;
+                  //allContracts.concat(ocData.chain);
+                  allContracts[ocData.expiration] = ocData.chain;
+                } else {
+                  res.status(500);
+                  res.json({success: false, message: "Error fetching options chain.", error: "ERR_OPTIONSCHAIN_FETCH", details: ocData})
                 }
-              }
-              /**/
 
-              res.status(200);
-              res.json(formatChain(flattenedContracts));
+                // all options chain fetches were successful; return full chain
+                if (responseCount == Object.keys(data.expirations).length) {
+
+                  // Arrage contracts in order of date
+                  // https://www.w3docs.com/snippets/javascript/how-to-sort-javascript-object-by-key.html
+                  allContracts = Object.keys(allContracts).sort().reduce(function (result: any, key: string) {
+                    result[key] = allContracts[key];
+                    return result;
+                  }, {});
+
+                  /**/
+                  var flattenedContracts: any[] = [];
+                  for (var expInd in allContracts) {
+                    for (var conInd in allContracts[expInd]) {
+                      flattenedContracts.push(allContracts[expInd][conInd]);
+                    }
+                  }
+                  /**/
+
+                  res.status(200);
+                  res.json(formatChain(flattenedContracts, quoteData.spot_price));
+                }
+              });
             }
-          });
-        }
-      } else { // failed request
-        res.status(status);
-        res.json(data);
+          } else { // failed request
+            res.status(status);
+            res.json(data);
+          }
+        });
+      } else {
+        res.status(quoteStatus);
+        res.json(quoteData);
       }
     });
+
   } else { // failed request
     res.status(400);
     res.json({"success": false, "message": "Missing parameters.", "error": "ERR_MISSING_PARAMS"});

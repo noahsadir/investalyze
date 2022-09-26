@@ -6,13 +6,34 @@ body {
   font-family: "Open Sans", sans-serif;
 }
 
+.mobile-hidden {
+  display: block;
+}
+
+.hbox-standard {
+  display: flex;
+  flex-flow: row;
+}
+
+.hbox-standard-spacer {
+  flex-grow: 1;
+}
+
 .hbox-mobile {
   display: flex;
   flex-flow: row;
 }
 
+.hbox-mobile-padding {
+  padding: 0;
+  margin: 0;
+  width: 8px;
+  min-width: 8px;
+  max-width: 8px;
+}
+
 .hbox-mobile-spacer {
-    flex-grow: 1;
+  flex-grow: 1;
 }
 
 .toolbar-search {
@@ -40,12 +61,22 @@ body {
     flex-flow: column;
   }
 
+  .hbox-mobile-padding {
+    padding: 0;
+    margin: 0;
+    width: 0px;
+  }
+
   .hbox-mobile-spacer {
       flex-grow: 0;
   }
 
   .toolbar-search {
     width: 100%;
+  }
+
+  .mobile-hidden {
+    display: none;
   }
 }
 

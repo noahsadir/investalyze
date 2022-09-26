@@ -1,8 +1,18 @@
+/**
+ * App.tsx
+ *
+ *   _________ __________   ________    ____    __   __   __    _________  ____
+ *  /  ______/ \__    __/  /  ___   \  /    \  |  \ |  | /  /  /  ______/ \    /
+ * |  |______     |  |    |  |   |  | |  |\  \ |  | |  |/  /  |  |______   \  /
+ * \______   \    |  |    |  |   |  | |  | \  \|  | |     |   \______   \   \/
+ *  ______|  |    |  |    |  |___|  | |  |  \  |  | |  |\  \   ______|  |   __
+ * \________/     |__|    \________/  \__/   \___/  \__| \__\ \________/   |__|
+ *
+ */
+
 import React from 'react';
 import './App.css';
-
 import { styled, alpha } from '@mui/material/styles';
-
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import InputBase from '@mui/material/InputBase';
@@ -14,15 +24,23 @@ import Paper from '@mui/material/Paper';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
-
+import Backdrop from '@mui/material/Backdrop';
+import CircularProgress from '@mui/material/CircularProgress';
 import SearchIcon from '@mui/icons-material/Search';
+import {
+  Contract, LookupTable, LookupTableEntry, OptionsChain
+} from './interfaces';
+import { AnalysisView } from './AnalysisView/AnalysisView';
+const fetch = require('node-fetch');
 
 /**
  * Search bar object
  * Adapted from MUI docs: section 'App bar with search field'
  * https://mui.com/material-ui/react-app-bar/
  */
-function SearchBar() {
+function SearchBar(props: any) {
+
+  const [symbolValue, setSymbolValue] = React.useState("");
 
   const Search = styled('div')(({ theme }) => ({
     position: 'relative',
@@ -55,16 +73,90 @@ function SearchBar() {
       width: '100%',
     },
     width: '100%'
-  }));
+  }))
+
+  const onSymbolBarKeyDown = (event: any) => {
+    if (event.key === "Enter") {
+      props.onSymbolEnter(symbolValue.toUpperCase());
+      setSymbolValue("");
+    }
+  }
 
   return (
     <Search>
       <SearchIconWrapper>
         <SearchIcon/>
       </SearchIconWrapper>
-      <StyledInputBase placeholder="e.g. MSFT" inputProps={{'aria-label': 'search'}}/>
+      <StyledInputBase
+        autoFocus={true}
+        onKeyDown={onSymbolBarKeyDown}
+        onChange={(event: any) => {setSymbolValue(event.target.value);}}
+        value={symbolValue}
+        placeholder="e.g. MSFT"
+        inputProps={{'aria-label': 'search'}}
+        />
     </Search>
   );
+}
+
+/**
+ * Fetch options chain for the symbol
+ */
+function loadSymbol(symbol: string, callback: (success: boolean, data: any) => void) {
+
+  if (symbol == "@TEST") {
+    callback(true, require('./test_data.json'));
+  } else {
+    var url: string = "https://" + window.location.host + "/api/options_chain"
+    var config: any = {
+      method: 'post',
+      headers: {
+        'mode': 'no-cors',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        'symbol': symbol,
+        'api_key': "abc_123"
+      })
+    };
+
+    var status: number = 500;
+    fetch(url, config)
+    .then((response: any) => {
+      status = response.status;
+      return response.json();
+    })
+    .then((data: any) => {
+      if (status == 200) {
+        if (data != null) {
+          callback(true, data);
+        } else {
+          callback(false, {
+            success: false,
+            message: "Error fetching data.",
+            error: "ERR_DATA_NULL",
+            details: data
+          });
+        }
+      } else {
+        callback(false, {
+          success: false,
+          message: "Error fetching data.",
+          error: "ERR_DATA_FETCH",
+          details: data
+        });
+      }
+    })
+    .catch((error: any) => {
+      console.log(error);
+      callback(false, {
+        success: false,
+        message: "Error fetching data.",
+        error: "ERR_RESPONSE_FETCH",
+        details: error
+      });
+    });
+  }
 }
 
 /**
@@ -72,10 +164,30 @@ function SearchBar() {
  */
 function App() {
 
+  //var optionsChains: {[key: string]: OptionsChain} = {};
+
+  const [loadingScreenOpen, setLoadingScreenOpen] = React.useState(false);
+  const [optionsChains, setOptionsChains]: [{[key: string]: OptionsChain}, any] = React.useState({});
+  const [updates, setUpdates] = React.useState(0);
+
+  const handleSymbolEntered = (symbol: string) => {
+    setLoadingScreenOpen(true);
+    loadSymbol(symbol, (success, data) => {
+      optionsChains[symbol] = data;
+      setLoadingScreenOpen(false);
+
+      // necessary to force state update (particularly with @TEST symbol)
+      setUpdates(updates + 1);
+    });
+  }
+
   return (
     <div className="App" style={{height: '100%', display: 'flex', flexFlow: 'column'}}>
-      <MainToolbar/>
-      <MainContent/>
+      <MainToolbar onSymbolEnter={handleSymbolEntered}/>
+      <MainContent optionsChains={optionsChains}/>
+      <Backdrop sx={{zIndex: (theme) => theme.zIndex.drawer + 1}} open={loadingScreenOpen}>
+        <CircularProgress color="inherit"/>
+      </Backdrop>
     </div>
   );
 }
@@ -83,19 +195,22 @@ function App() {
 /**
  * Toolbar for application
  */
-function MainToolbar() {
+function MainToolbar(props: any) {
   return (
     <AppBar position="static" sx={{padding: 0}}>
       <Toolbar style={{display: 'flex', padding: 0}}>
         <div className="hbox-mobile" style={{flexGrow: 1}}>
           <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0, paddingLeft: 16}}>
-            <p style={{margin: 0, padding: 0, textAlign: 'left', fontSize: 22, fontWeight: 'bold'}}>Investalyze</p>
-            <p style={{margin: 0, marginTop: -4, padding: 0, textAlign: 'left', fontSize: 14}}>by Noah Sadir</p>
+            <div style={{flexGrow: 1}}></div>
+            <p style={{margin: 0, padding: 0, textAlign: 'left', fontSize: 24, fontWeight: 'bold'}}>
+              Investalyze
+            </p>
+            <div style={{flexGrow: 1}}></div>
           </div>
           <div className="hbox-mobile-spacer" style={{flexGrow: 1}}></div>
           <div className="toolbar-search" style={{flexGrow: 0}}>
             <div style={{padding: 8, paddingLeft: 16, paddingRight: 16}}>
-              <SearchBar/>
+              <SearchBar onSymbolEnter={props.onSymbolEnter}/>
             </div>
           </div>
         </div>
@@ -107,117 +222,12 @@ function MainToolbar() {
 /**
  * Main content container
  */
-function MainContent() {
+function MainContent(props: any) {
   return (
     <div style={{display: 'flex', flexGrow: 1}}>
-      <AnalysisView/>
+      <AnalysisView optionsChains={props.optionsChains}/>
     </div>
   );
 }
 
-/**
- * Manages analysis section of the app.
- */
-function AnalysisView() {
-
-  const [analysisType, setAnalysisType] = React.useState('summary');
-
-  const handleAnalysisTypeChange = (event: any, selectedType: string) => {
-    if (selectedType !== null) {
-      setAnalysisType(selectedType);
-    }
-  };
-
-  const toggleStyle = {
-    flexGrow: 1
-  };
-
-  return (
-    <div style={{display: 'flex', flexFlow: 'column', flexGrow: 1}}>
-      <Paper style={{margin: 8, marginBottom: 0, padding: 8, display: 'flex', flexGrow: 0}} elevation={3}>
-        <ToggleButtonGroup style={{display: 'flex', flexGrow: 1}} value={analysisType} color="primary" onChange={handleAnalysisTypeChange} exclusive>
-          <ToggleButton style={toggleStyle} value="summary">Summary</ToggleButton>
-          <ToggleButton style={toggleStyle} value="metrics">Metrics</ToggleButton>
-          <ToggleButton style={toggleStyle} value="trading">Trading</ToggleButton>
-        </ToggleButtonGroup>
-      </Paper>
-      <div style={{flexGrow: 1, display: 'flex'}}>
-        <AnalysisView_MainContent paneType={analysisType}/>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Manages pane toggling and general configuration
- */
-function AnalysisView_MainContent(props: any) {
-  const [selectedSymbol, setSelectedSymbol] = React.useState("MSFT");
-
-  var selectedPane: any = null;
-  switch (props.paneType) {
-    case "summary":
-      selectedPane = (<AnalysisView_SummaryPane/>);
-      break;
-    case "metrics":
-      selectedPane = (<AnalysisView_MetricsPane/>);
-      break;
-    case "trading":
-      selectedPane = (<AnalysisView_TradingPane/>);
-      break;
-    default:
-      break;
-  }
-
-  const handleSymbolSelectChange = (event: SelectChangeEvent) => {
-    setSelectedSymbol(event.target.value);
-  };
-
-  return (
-    <Paper style={{margin: 8, padding: 8, display: 'flex', flexGrow: 1, flexFlow: 'column'}} elevation={1}>
-      <div style={{flexGrow: 0, display: 'flex'}}>
-        <Select sx={{minWidth: 128, maxHeight: 32}} id="symbolSelect" value={selectedSymbol} label="Symbol" onChange={handleSymbolSelectChange}>
-          <MenuItem value={"MSFT"}>MSFT</MenuItem>
-          <MenuItem value={"AAPL"}>AAPL</MenuItem>
-          <MenuItem value={"SPY"}>SPY</MenuItem>
-        </Select>
-        <p></p>
-      </div>
-      {selectedPane}
-    </Paper>
-  );
-}
-
-/**
- * Summary pane for Analysis View
- */
-function AnalysisView_SummaryPane() {
-  return (
-    <div style={{display: 'flex', flexGrow: 1}}>
-      <p>Summary Pane</p>
-    </div>
-  );
-}
-
-/**
- * Metrics pane for Analysis View
- */
-function AnalysisView_MetricsPane() {
-  return (
-    <div style={{display: 'flex', flexGrow: 1}}>
-      <p>Metrics Pane</p>
-    </div>
-  );
-}
-
-/**
- * Trading pane for Analysis View
- */
-function AnalysisView_TradingPane() {
-  return (
-    <div style={{display: "flex", flexGrow: 1}}>
-      <p>Trading Pane</p>
-    </div>
-  );
-}
 export default App;

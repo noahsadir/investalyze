@@ -17,7 +17,7 @@ const mode = 'dark';
 
 const theme = createTheme({
   palette: {
-    mode: 'dark',
+    mode: mode,
     primary: {
       main: ((mode === 'dark') ? indigo[200] : indigo[700]),
     },

@@ -12,12 +12,16 @@ mv investalyze cloned_files
 npx create-react-app react_app --template typescript
 npm install express
 npm i --save-dev @types/express
+npm install node-fetch@2
 npm install typescript
 
 cd ./react_app
 npm install @mui/material @emotion/react @emotion/styled
 npm install @mui/icons-material
 npm install @fontsource/open-sans
+npm install node-fetch@2
+npm install react-plotly.js plotly.js
+npm install react-chartjs-2 chart.js
 cd ..
 
 # replace backend config
