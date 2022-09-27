@@ -1,3 +1,13 @@
+/**
+ * DataPane.tsx
+ *
+ * Data Pane for Analytics View
+ *
+ * TODO
+ * - Implement table view option
+ * - Implement range selection
+ */
+
 import React from 'react';
 import '../App.css';
 import { styled, alpha } from '@mui/material/styles';
@@ -13,17 +23,15 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+import { Chart as ChartJS, registerables } from 'chart.js';
 import { Line, Bar, Scatter } from 'react-chartjs-2';
 
 import {
@@ -31,15 +39,7 @@ import {
 } from '../interfaces';
 const fetch = require('node-fetch');
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(...registerables);
 
 var colors = [
   '#666ad1',
@@ -138,7 +138,6 @@ export function DataPane(props: any) {
 
   const expirations = Object.keys(props.optionsChain.lookup.byExpiration);
 
-
   var [config, setConfig]: [DataConfig, any] = React.useState({
     x_axis: "strike",
     y_axis: "mark",
@@ -151,7 +150,6 @@ export function DataPane(props: any) {
 
   const handleConfigChange = (newConfig: DataConfig) => {
     setConfig(newConfig);
-    console.log(newConfig);
   }
 
   return ((props.optionsChain != null) ? (
@@ -172,16 +170,12 @@ export function DataPane(props: any) {
  */
 function DataPaneMainContent(props: any) {
 
-  //console.log(props.config);
-
   const chartData: any = getFilteredData(props.optionsChain, props.config);
-
-  console.log(chartData);
 
   const chartJSOptions: any = {
     legend: {
       labels: {
-        fontColor: 'orange',
+        color: '#ffffff',
       },
       display: true,
     },
@@ -190,26 +184,61 @@ function DataPaneMainContent(props: any) {
     animations: null,
     scales: {
       y: {
-        type: 'linear'
+        type: 'linear',
+        ticks: {
+          color: '#ffffff'
+        },
+        grid: {
+          color: '#00000000'
+        }
       },
       x: {
-        type: 'linear'
-      },
+        type: 'linear',
+        ticks: {
+          color: '#ffffff'
+        },
+        grid: {
+          color: '#00000000'
+        }
+      }
     }
   };
 
   var datasets: any[] = [];
   for (var key in chartData) {
-    datasets.push({
-      label: key,
-      pointRadius: 2,
-      fill: false,
-      backgroundColor: colors[datasets.length],
-      borderColor: colors[datasets.length],
-      data: chartData[key],
-      showLine: true
-    });
+    if (key != "labels") {
+      datasets.push({
+        label: key,
+        pointRadius: 2,
+        fill: false,
+        backgroundColor: colors[datasets.length],
+        borderColor: colors[datasets.length],
+        data: chartData[key],
+        showLine: true
+      });
+    }
   }
+
+  const chart: any = (props.config.chart_type == "bar") ? (
+    <Bar
+      style={{flexGrow: 0, flexBasis: 0, width: '100%', height: '100%'}}
+      datasetIdKey='id'
+      data={{
+        labels: chartData.labels,
+        datasets: datasets
+      }}
+      options={chartJSOptions}
+    />
+  ) : (
+    <Scatter
+      style={{flexGrow: 0, flexBasis: 0, width: '100%', height: '100%'}}
+      datasetIdKey='id'
+      data={{
+        datasets: datasets
+      }}
+      options={chartJSOptions}
+    />
+  );
 
   return (
     <div style={{overflow: "hidden", display: "flex", flexFlow: "row", flex: "1 0 0"}}>
@@ -221,14 +250,7 @@ function DataPaneMainContent(props: any) {
       <div style={{overflow: "hidden", display: "flex", flexFlow: "column", flex: "100 0 0"}}>
         <div style={{flex: "1 0 0"}}/>
         <div style={{flex: "100 0 0", overflow: "hidden", borderRadius: 8}}>
-          <Scatter
-            style={{flexGrow: 0, flexBasis: 0, width: '100%', height: '100%'}}
-            datasetIdKey='id'
-            data={{
-              datasets: datasets
-            }}
-            options={chartJSOptions}
-          />
+          {chart}
         </div>
         <p style={{display: "block", margin:0,padding:0,textAlign:"center",height:24,lineHeight:"24px"}}>{getFilterConfig(props.config.x_axis).name}</p>
         <div style={{flex: "1 0 0"}}/>
@@ -287,6 +309,7 @@ function DataPaneToolbar(props: any) {
       setDatasetValue(defaultVal);
     }
 
+    setXAxis(event.target.value == "byExpiration" ? "strike" : "expiration_date_integer_millis");
     setDatasetType(event.target.value);
     handleConfigChange("dataset_type", event.target.value);
   }
@@ -294,7 +317,7 @@ function DataPaneToolbar(props: any) {
   // Selects are quite a PITA
   return (
     <div className="hbox-mobile" style={{flexGrow: 0, marginTop: '8px'}}>
-      <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px'}}>
+      <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px'}}>
         <div style={{display: 'flex', flexGrow: 0}}>
           <div style={{flexGrow: 1}}></div>
           <Typography sx={{fontSize: '12px', paddingBottom: '12px', flexGrow: 0}}>CHART OPTIONS</Typography>
@@ -308,16 +331,6 @@ function DataPaneToolbar(props: any) {
                       onChange={(event: any) => {setChartType(event.target.value); handleConfigChange("chart_type", event.target.value);}}>
                 <MenuItem value={"bar"}>{"Bar Chart"}</MenuItem>
                 <MenuItem value={"line"}>{"Line Chart"}</MenuItem>
-                <MenuItem value={"surface"}>{"Surface Chart"}</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-          <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px', marginRight: '8px'}}>
-            <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
-              <InputLabel>X-Axis</InputLabel>
-              <Select sx={{height: 32}} label="X-Axis" id="xAxisSelect" value={xAxis}
-                      onChange={(event: any) => {setXAxis(event.target.value); handleConfigChange("x_axis", event.target.value);}}>
-                {filterMenuItems}
               </Select>
             </FormControl>
           </div>
@@ -333,13 +346,13 @@ function DataPaneToolbar(props: any) {
         </div>
       </div>
       <Divider light sx={{marginLeft: '8px', marginRight: '8px', maxHeight: '64px'}} className="mobile-hidden" orientation="vertical"/>
-      <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px'}}>
+      <div style={{flexGrow: 3, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px'}}>
         <div style={{display: 'flex', flexGrow: 0}}>
           <div style={{flexGrow: 1}}></div>
           <Typography sx={{fontSize: '12px', paddingBottom: '12px', flexGrow: 0}}>DATASET</Typography>
           <div style={{flexGrow: 1}}></div>
         </div>
-        <div style={{display: 'flex', flexGrow: 1}}>
+        <div style={{display: 'flex', flexGrow: 1, flexShrink: 1}}>
           <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px', marginRight: '8px'}}>
             <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
               <InputLabel>Option Type</InputLabel>
@@ -372,6 +385,7 @@ function DataPaneToolbar(props: any) {
           </div>
         </div>
       </div>
+      <div style={{flexGrow: 0, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px'}}></div>
     </div>
   );
 }
@@ -390,6 +404,10 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
 
   var result: any = {};
 
+  if (config.chart_type == "bar") {
+    result["labels"] = [];
+  }
+
   if (callsAndPuts != null) {
     const calls: string[] = callsAndPuts.call;
     const puts: string[] = callsAndPuts.put;
@@ -398,8 +416,16 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
     for (var i in calls) {
       const call: any = optionsChain.contracts[calls[i]];
       const put: any = optionsChain.contracts[puts[i]];
-      callPoints.push({x: call[config.x_axis], y: call[config.y_axis]});
-      putPoints.push({x: put[config.x_axis], y: put[config.y_axis]});
+      if (call != null && put != null) {
+        if (config.chart_type == "line") {
+          callPoints.push({x: call[config.x_axis], y: call[config.y_axis]});
+          putPoints.push({x: put[config.x_axis], y: put[config.y_axis]});
+        } else if (config.chart_type == "bar") {
+          result["labels"].push(call[config.x_axis]);
+          callPoints.push(call[config.y_axis]);
+          putPoints.push(put[config.y_axis]);
+        }
+      }
     }
   }
 

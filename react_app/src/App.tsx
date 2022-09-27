@@ -116,7 +116,7 @@ function loadSymbol(symbol: string, callback: (success: boolean, data: any) => v
       },
       body: JSON.stringify({
         'symbol': symbol,
-        'api_key': "abc_123"
+        'api_key': "abc123"
       })
     };
 

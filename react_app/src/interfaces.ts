@@ -38,9 +38,17 @@ export interface LookupTableEntry {
   put: string[];
 }
 
+export interface StockQuote {
+  symbol: string;
+  name: string;
+  spot_price: number;
+  change: number;
+}
+
 export interface OptionsChain {
   lookup: LookupTable;
   contracts: {[key: string]: Contract};
+  quote: StockQuote;
   spot_price: number;
   fetch_date: number;
 }

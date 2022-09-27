@@ -88,7 +88,8 @@ function tradierSymbolQuote(symbol: string, api_key: string, callback: (status: 
         callback(200, {
           symbol: quote.symbol,
           name: quote.description,
-          spot_price: quote.last
+          spot_price: quote.last,
+          change: quote.change
         });
       } else {
         callback(500, {
@@ -109,11 +110,12 @@ function tradierSymbolQuote(symbol: string, api_key: string, callback: (status: 
  * Doing this allows for us to change the data source without breaking the whole
  * program or requiring a massive rewrite.
  */
-function formatChain(data: any[], spot_price: number) {
+function formatChain(data: any[], quote: any) {
   // lookup contains contract IDs indexed by date and strike
   // contracts contains data for each individual contract
 
   const fetch_date: number = Date.now();
+  const spot_price: number = quote.spot_price;
 
   var output: any = {
     lookup: {
@@ -127,6 +129,7 @@ function formatChain(data: any[], spot_price: number) {
     contracts: {
 
     },
+    quote: quote,
     fetch_date: fetch_date,
     spot_price: spot_price
   };
@@ -218,7 +221,7 @@ function calculateIntrinsic(type: string, strike: number, spot: number) {
 
 function calculateExtrinsic(intrinsic: number, mark: number) {
   if (!isNaN(intrinsic) && !isNaN(mark)) {
-    return mark - intrinsic;
+    return (mark - intrinsic > 0) ? (mark - intrinsic) : 0;
   }
   return undefined;
 }
@@ -233,7 +236,10 @@ function calculateLeverageRatio(delta: number, mark: number, spot: number) {
 function calculateInterestEquivalent(delta: number, exp_millis: number, fetch_millis: number, leverage_ratio: number, extrinsic: number, spot: number) {
   if (!isNaN(extrinsic) && !isNaN(leverage_ratio)) {
     const annual_extrinsic = extrinsic * (365.25 / ((exp_millis - fetch_millis) / 86400000));
-    return annual_extrinsic / (spot * delta * leverage_ratio);
+    const interestEquiv: number = annual_extrinsic / (spot * delta * leverage_ratio);
+    if (!isNaN(interestEquiv) && Math.abs(interestEquiv) < 100) {
+      return interestEquiv;
+    }
   }
   return undefined;
 }
@@ -288,7 +294,7 @@ app.post('/api/options_chain', (req, res) => {
                   /**/
 
                   res.status(200);
-                  res.json(formatChain(flattenedContracts, quoteData.spot_price));
+                  res.json(formatChain(flattenedContracts, quoteData));
                 }
               });
             }
