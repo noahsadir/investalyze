@@ -2,6 +2,8 @@ import React from 'react';
 import '../App.css';
 import { styled, alpha } from '@mui/material/styles';
 import InputBase from '@mui/material/InputBase';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -24,7 +26,7 @@ const fetch = require('node-fetch');
  */
 export function AnalysisView(props: any) {
 
-  const [analysisType, setAnalysisType] = React.useState('summary');
+  const [analysisType, setAnalysisType] = React.useState('data');
 
   const handleAnalysisTypeChange = (event: any, selectedType: string) => {
     if (selectedType !== null) {
@@ -35,15 +37,18 @@ export function AnalysisView(props: any) {
   const toggleStyle = {
     flexGrow: 1
   };
+  /*
+  <ToggleButton style={toggleStyle} value="summary">Summary</ToggleButton>
+  <ToggleButton style={toggleStyle} value="data">Data</ToggleButton>
+  <ToggleButton style={toggleStyle} value="metrics">Metrics</ToggleButton>
+  <ToggleButton style={toggleStyle} value="trading">Trading</ToggleButton>
+  */
 
   return (
     <div style={{display: 'flex', flexFlow: 'column', flexGrow: 1}}>
       <Paper style={{margin: 8, marginBottom: 0, padding: 8, display: 'flex', flexGrow: 0}} elevation={3}>
         <ToggleButtonGroup style={{display: 'flex', flexGrow: 1}} value={analysisType} color="primary" onChange={handleAnalysisTypeChange} exclusive>
-          <ToggleButton style={toggleStyle} value="summary">Summary</ToggleButton>
           <ToggleButton style={toggleStyle} value="data">Data</ToggleButton>
-          <ToggleButton style={toggleStyle} value="metrics">Metrics</ToggleButton>
-          <ToggleButton style={toggleStyle} value="trading">Trading</ToggleButton>
         </ToggleButtonGroup>
       </Paper>
       <div style={{flexGrow: 1, display: 'flex'}}>
@@ -108,24 +113,28 @@ function MainContent(props: any) {
   for (var symbol in props.optionsChains) {
     symbolSelectItems.push(<MenuItem value={symbol}>{symbol}</MenuItem>);
   }
+
   //<MenuItem value={"MSFT"}>MSFT</MenuItem>
   return (props.optionsChains[selectedSymbol] != null) ? (
     <Paper style={{margin: 8, padding: 8, display: 'flex', flexGrow: 1, flexFlow: 'column', maxWidth: 'calc(calc(100vw) - 16px)'}} elevation={1}>
       <div style={{flexGrow: 0, display: 'flex', paddingBottom: '8px'}}>
         <div style={{flexBasis: 0, flexGrow: 1, display: 'flex'}}>
-          <Select sx={{minWidth: 128, maxHeight: 32, flexBasis: 0, flexGrow: 0}} id="symbolSelect" value={selectedSymbol} label="Symbol" onChange={handleSymbolSelectChange}>
-          {symbolSelectItems}
-          </Select>
+          <FormControl sx={{minWidth: 128, flexBasis: 0, flexGrow: 0}}>
+            <InputLabel>Symbol</InputLabel>
+            <Select sx={{maxHeight: 32}} id="symbolSelect" value={selectedSymbol} label="Symbol" onChange={handleSymbolSelectChange}>
+            {symbolSelectItems}
+            </Select>
+          </FormControl>
           <div style={{flexBasis: 0, flexGrow: 1}}></div>
         </div>
         <div style={{flexBasis: 0, flexGrow: 1}}></div>
-        <div style={{display: 'flex', flexFlow: 'column', flexBasis: 0, flexGrow: 1}}>
+        <div style={{display: 'flex', flexFlow: 'column', flexGrow: 1}}>
           <div style={{flexGrow: 1}}></div>
           <Typography sx={{fontSize: '18px', fontWeight: '800', margin: '0px'}}>{symbolName}</Typography>
           <div style={{flexGrow: 1}}></div>
         </div>
         <div style={{flexBasis: 0, flexGrow: 1}}></div>
-        <div style={{flexBasis: 0, flexGrow: 1, display: 'flex'}}>
+        <div style={{flexGrow: 1, display: 'flex'}}>
           <div style={{flexGrow: 1}}></div>
           <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0}}>
             <div style={{flexGrow: 1}}></div>

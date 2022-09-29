@@ -99,6 +99,8 @@ interface DataConfig {
   option_type: string;
   dataset_type: string;
   dataset_value: string;
+  lower_bound: string;
+  upper_bound: string;
   filters: DataFilters;
 }
 
@@ -136,7 +138,8 @@ export function DataPane(props: any) {
     mark: undefined
   };
 
-  const expirations = Object.keys(props.optionsChain.lookup.byExpiration);
+  const expirations: string[] = Object.keys(props.optionsChain.lookup.byExpiration);
+  const strikes: string[] = Object.keys(props.optionsChain.lookup.byStrike).sort((a: string, b: string) => {return Number(a) - Number(b);});
 
   var [config, setConfig]: [DataConfig, any] = React.useState({
     x_axis: "strike",
@@ -145,6 +148,8 @@ export function DataPane(props: any) {
     option_type: "both",
     dataset_type: "byExpiration",
     dataset_value: (expirations != null && expirations.length > 0) ? expirations[0] : "",
+    lower_bound: (strikes != null && strikes.length > 0) ? strikes[0] : "",
+    upper_bound: (strikes != null && strikes.length > 0) ? strikes[strikes.length - 1] : "",
     filters: filters
   });
 
@@ -268,6 +273,7 @@ function DataPaneToolbar(props: any) {
 
   var filterMenuItems: any[] = [];
   var datasetMenuItems: any[] = [];
+  var boundsMenuItems: any[] = [];
 
   var [chartType, setChartType]: [string, any] = React.useState(props.config.chart_type);
   var [xAxis, setXAxis]: [string, any] = React.useState(props.config.x_axis);
@@ -276,6 +282,11 @@ function DataPaneToolbar(props: any) {
   var [optionType, setOptionType]: [string, any] = React.useState(props.config.option_type);
   var [datasetType, setDatasetType]: [string, any] = React.useState(props.config.dataset_type);
   var [datasetValue, setDatasetValue]: [string, any] = React.useState(props.config.dataset_value);
+
+  var [lowerBound, setLowerBound]: [string, any] = React.useState(props.config.lower_bound);
+  var [upperBound, setUpperBound]: [string, any] = React.useState(props.config.upper_bound);
+
+  const boundsSorted: string[] = (datasetType == "byExpiration") ? Object.keys(props.optionsChain.lookup.byStrike).sort((a: string, b: string) => {return Number(a) - Number(b);}) : Object.keys(props.optionsChain.lookup.byExpiration);
 
   // propogate changes to parent
   const handleConfigChange = (key: string, value: any) => {
@@ -286,6 +297,8 @@ function DataPaneToolbar(props: any) {
       option_type: optionType,
       dataset_type: datasetType,
       dataset_value: datasetValue,
+      lower_bound: lowerBound,
+      upper_bound: upperBound,
       filters: props.config.filters
     };
     newConfig[key] = value;
@@ -297,6 +310,11 @@ function DataPaneToolbar(props: any) {
     datasetMenuItems.push(<MenuItem value={val}>{val}</MenuItem>);
   }
 
+  // get list of stikes or expirations depending on x axis
+  for (var val in boundsSorted) {
+    boundsMenuItems.push(<MenuItem value={boundsSorted[val]}>{boundsSorted[val]}</MenuItem>);
+  }
+
   // get list of data points for contracts
   for (var key in props.config.filters) {
     filterMenuItems.push(<MenuItem value={key}>{getFilterConfig(key).name}</MenuItem>)
@@ -305,8 +323,11 @@ function DataPaneToolbar(props: any) {
   // more involved since it changes the options for dataset values
   const handleDatasetTypeChange = (event: any) => {
     if (props.optionsChain.lookup[event.target.value] != null) {
-      var defaultVal = Object.keys(props.optionsChain.lookup[event.target.value])[0];
-      setDatasetValue(defaultVal);
+      var datasetValues: string[] = Object.keys(props.optionsChain.lookup[event.target.value]);
+      const boundsValues: string[] = (event.target.value == "byExpiration") ? Object.keys(props.optionsChain.lookup.byStrike).sort((a: string, b: string) => {return Number(a) - Number(b);}) : Object.keys(props.optionsChain.lookup.byExpiration);
+      setDatasetValue(datasetValues[0]);
+      setLowerBound(boundsValues[0]);
+      setUpperBound(boundsValues[boundsValues.length - 1]);
     }
 
     setXAxis(event.target.value == "byExpiration" ? "strike" : "expiration_date_integer_millis");
@@ -316,8 +337,8 @@ function DataPaneToolbar(props: any) {
 
   // Selects are quite a PITA
   return (
-    <div className="hbox-mobile" style={{flexGrow: 0, marginTop: '8px'}}>
-      <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px'}}>
+    <div className="hbox-mobile" style={{flexGrow: 0}}>
+      <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px', marginTop: '8px'}}>
         <div style={{display: 'flex', flexGrow: 0}}>
           <div style={{flexGrow: 1}}></div>
           <Typography sx={{fontSize: '12px', paddingBottom: '12px', flexGrow: 0}}>CHART OPTIONS</Typography>
@@ -345,8 +366,8 @@ function DataPaneToolbar(props: any) {
           </div>
         </div>
       </div>
-      <Divider light sx={{marginLeft: '8px', marginRight: '8px', maxHeight: '64px'}} className="mobile-hidden" orientation="vertical"/>
-      <div style={{flexGrow: 3, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px'}}>
+      <Divider light sx={{marginLeft: '8px', marginRight: '8px', maxHeight: '64px', marginTop: '8px'}} className="mobile-hidden" orientation="vertical"/>
+      <div style={{flexGrow: 3, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px', marginTop: '8px'}}>
         <div style={{display: 'flex', flexGrow: 0}}>
           <div style={{flexGrow: 1}}></div>
           <Typography sx={{fontSize: '12px', paddingBottom: '12px', flexGrow: 0}}>DATASET</Typography>
@@ -385,6 +406,37 @@ function DataPaneToolbar(props: any) {
           </div>
         </div>
       </div>
+      <Divider light sx={{marginLeft: '8px', marginRight: '8px', maxHeight: '64px', marginTop: '8px'}} className="mobile-hidden" orientation="vertical"/>
+      <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px', marginTop: '8px'}}>
+        <div style={{display: 'flex', flexGrow: 0}}>
+          <div style={{flexGrow: 1}}></div>
+          <Typography sx={{fontSize: '12px', paddingBottom: '12px', flexGrow: 0}}>X-AXIS RANGE</Typography>
+          <div style={{flexGrow: 1}}></div>
+        </div>
+        <div style={{display: 'flex', flexGrow: 1, flexShrink: 1}}>
+          <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px', marginRight: '8px'}}>
+            <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
+              <InputLabel>From</InputLabel>
+              <Select sx={{height: 32}} label="From" id="yAxisSelect" value={lowerBound}
+                      onChange={(event: any) => {setLowerBound(event.target.value); handleConfigChange("lower_bound", event.target.value);}}>
+                {boundsMenuItems}
+              </Select>
+            </FormControl>
+          </div>
+          <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px'}}>
+            <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
+              <InputLabel>To</InputLabel>
+              <Select sx={{height: 32}} label="To" id="yAxisSelect" value={upperBound}
+                      onChange={(event: any) => {setUpperBound(event.target.value); handleConfigChange("upper_bound", event.target.value);}}>
+                {boundsMenuItems}
+              </Select>
+            </FormControl>
+          </div>
+        </div>
+      </div>
+
+
+
       <div style={{flexGrow: 0, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px'}}></div>
     </div>
   );
@@ -402,6 +454,11 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
   var callPoints: any[] = [];
   var putPoints: any[] = [];
 
+  var reachedLowerBound: boolean = false;
+  var reachedUpperBound: boolean = false;
+  var lowerBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.lower_bound) : Date.parse(config.lower_bound);
+  var upperBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.upper_bound) : Date.parse(config.upper_bound);
+
   var result: any = {};
 
   if (config.chart_type == "bar") {
@@ -416,7 +473,22 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
     for (var i in calls) {
       const call: any = optionsChain.contracts[calls[i]];
       const put: any = optionsChain.contracts[puts[i]];
-      if (call != null && put != null) {
+
+      // determine bounds comparison value for this options pair
+      var currentBoundVal: number = 0;
+      if (call != null && config.dataset_type == "byExpiration") {
+        currentBoundVal = call.strike;
+      } else if (call != null) {
+        currentBoundVal = call.expiration_date_integer_millis;
+      }
+
+      // found lower bound; start adding entries
+      if (currentBoundVal >= lowerBoundVal) {
+        reachedLowerBound = true;
+      }
+
+      // add points to chart if within bounds
+      if (call != null && put != null && reachedLowerBound && !reachedUpperBound) {
         if (config.chart_type == "line") {
           callPoints.push({x: call[config.x_axis], y: call[config.y_axis]});
           putPoints.push({x: put[config.x_axis], y: put[config.y_axis]});
@@ -425,6 +497,11 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
           callPoints.push(call[config.y_axis]);
           putPoints.push(put[config.y_axis]);
         }
+      }
+
+      // found upper bound; stop adding entries
+      if (currentBoundVal >= upperBoundVal) {
+        reachedUpperBound = true;
       }
     }
   }

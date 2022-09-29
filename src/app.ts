@@ -154,6 +154,18 @@ function formatChain(data: any[], quote: any) {
     output.lookup.byExpiration[expirationDate][optionType].push(symbol);
     output.lookup.byStrike[strike][optionType].push(symbol);
 
+    if (rawContractData.greeks == null) {
+      rawContractData.greeks = {
+        delta: undefined,
+        gamme: undefined,
+        theta: undefined,
+        rho: undefined,
+        vega: undefined,
+        implied_volatility: undefined,
+        smooth_implied_volatility: undefined
+      }
+    }
+
     const calculated_expiration: number = Date.parse(rawContractData.expiration_date);
     const calculated_mark: number = calculateMark(rawContractData.bid, rawContractData.ask);
     const calculated_intrinsic: number = calculateIntrinsic(rawContractData.option_type, rawContractData.strike, spot_price);
@@ -192,7 +204,7 @@ function formatChain(data: any[], quote: any) {
       interest_equivalent: calculated_interest_equivalent
     };
   }
-
+  
   return output;
 }
 
