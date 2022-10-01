@@ -37,6 +37,7 @@ export function AnalysisView(props: any) {
   const toggleStyle = {
     flexGrow: 1
   };
+  
   /*
   <ToggleButton style={toggleStyle} value="summary">Summary</ToggleButton>
   <ToggleButton style={toggleStyle} value="data">Data</ToggleButton>

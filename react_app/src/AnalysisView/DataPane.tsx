@@ -175,7 +175,9 @@ export function DataPane(props: any) {
  */
 function DataPaneMainContent(props: any) {
 
-  const chartData: any = getFilteredData(props.optionsChain, props.config);
+  const filteredData: any = getFilteredData(props.optionsChain, props.config);
+  const tableData: any = formatTableData(filteredData);
+  const chartData: any = formatChartData(filteredData, props.config.chart_type);
 
   const chartJSOptions: any = {
     legend: {
@@ -198,7 +200,7 @@ function DataPaneMainContent(props: any) {
         }
       },
       x: {
-        type: 'linear',
+        type: (props.config.chart_type == "line") ? 'linear' : 'category',
         ticks: {
           color: '#ffffff'
         },
@@ -245,22 +247,61 @@ function DataPaneMainContent(props: any) {
     />
   );
 
+  var bodyRows: any[] = [];
+  var headColumnCells: any[] = [];
+  headColumnCells.push(<TableCell>{getFilterConfig(props.config.x_axis).name}</TableCell>);
+  for (var series in filteredData) {
+    headColumnCells.push(<TableCell>{getFilterConfig(props.config.y_axis).name + " (" + series + ")"}</TableCell>);
+  }
+
+  for (var index in tableData) {
+    var bodyRowCells: any[] = [];
+    for (var cellInd in tableData[index]) {
+      var format: string = getFilterConfig(props.config.y_axis).format;
+      if (Number(cellInd) == 0) {
+        format = getFilterConfig(props.config.x_axis).format;
+      }
+      bodyRowCells.push(<TableCell>{formatDataValue(tableData[index][cellInd], format)}</TableCell>);
+    }
+    bodyRows.push(<TableRow>{bodyRowCells}</TableRow>);
+  }
+
   return (
-    <div style={{overflow: "hidden", display: "flex", flexFlow: "row", flex: "1 0 0"}}>
-      <div style={{flex: "1 0 0", display: "flex", flexFlow: "column"}}>
-        <div style={{flex: "1 0 0"}}/>
-        <p style={{display: "block", writingMode: "vertical-rl",textAlign:"center",margin:0,padding:0,paddingBottom:24}}>{getFilterConfig(props.config.y_axis).name}</p>
-        <div style={{flex: "1 0 0"}}/>
+    <div style={{display: 'flex', flexFlow: 'row', flexGrow: 1}}>
+      <Paper sx={{flex: '1 0 0', flexFlow: 'column', display: 'flex', overflow: 'hidden'}} variant={"outlined"}>
+        <TableContainer sx={{flex: '1 0 0', 'minHeight': 0}}>
+          <Table stickyHeader aria-label="sticky table">
+            <TableHead>
+              <TableRow>
+                {headColumnCells}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {bodyRows}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+      <div style={{margin: '4px', height: 'auto'}} className="mobile-hidden"></div>
+      <div style={{flex: '2 0 0', display: 'flex'}} className="mobile-hidden">
+        <Paper className="mobile-hidden" sx={{overflow: "hidden", display: "flex", flexFlow: "row", flex: "1 0 0"}} variant={"outlined"}>
+          <div style={{flex: "1 0 0", display: "flex", flexFlow: "column"}}>
+            <div style={{flex: "1 0 0"}}/>
+            <p style={{display: "block", writingMode: "vertical-rl",textAlign:"center",margin:0,padding:0,paddingBottom:24}}>{getFilterConfig(props.config.y_axis).name}</p>
+            <div style={{flex: "1 0 0"}}/>
+          </div>
+          <div style={{overflow: "hidden", display: "flex", flexFlow: "column", flex: "100 0 0"}}>
+            <div style={{flex: "1 0 0"}}/>
+            <div style={{flex: "100 0 0", overflow: "hidden", borderRadius: 8}}>
+              {chart}
+            </div>
+            <p style={{display: "block", margin:0,padding:0,textAlign:"center",height:24,lineHeight:"24px"}}>{getFilterConfig(props.config.x_axis).name}</p>
+            <div style={{flex: "1 0 0"}}/>
+          </div>
+          <div style={{flex: "1 0 0"}}/>
+        </Paper>
       </div>
-      <div style={{overflow: "hidden", display: "flex", flexFlow: "column", flex: "100 0 0"}}>
-        <div style={{flex: "1 0 0"}}/>
-        <div style={{flex: "100 0 0", overflow: "hidden", borderRadius: 8}}>
-          {chart}
-        </div>
-        <p style={{display: "block", margin:0,padding:0,textAlign:"center",height:24,lineHeight:"24px"}}>{getFilterConfig(props.config.x_axis).name}</p>
-        <div style={{flex: "1 0 0"}}/>
-      </div>
-      <div style={{flex: "1 0 0"}}/>
+
     </div>
   );
 
@@ -325,14 +366,28 @@ function DataPaneToolbar(props: any) {
     if (props.optionsChain.lookup[event.target.value] != null) {
       var datasetValues: string[] = Object.keys(props.optionsChain.lookup[event.target.value]);
       const boundsValues: string[] = (event.target.value == "byExpiration") ? Object.keys(props.optionsChain.lookup.byStrike).sort((a: string, b: string) => {return Number(a) - Number(b);}) : Object.keys(props.optionsChain.lookup.byExpiration);
+
       setDatasetValue(datasetValues[0]);
       setLowerBound(boundsValues[0]);
       setUpperBound(boundsValues[boundsValues.length - 1]);
-    }
 
-    setXAxis(event.target.value == "byExpiration" ? "strike" : "expiration_date_integer_millis");
-    setDatasetType(event.target.value);
-    handleConfigChange("dataset_type", event.target.value);
+
+      setXAxis(event.target.value == "byExpiration" ? "strike" : "expiration_date_integer_millis");
+      setDatasetType(event.target.value);
+
+      var newConfig: any = {
+        x_axis: (event.target.value == "byExpiration" ? "strike" : "expiration_date_integer_millis"),
+        y_axis: yAxis,
+        chart_type: chartType,
+        option_type: optionType,
+        dataset_type: event.target.value,
+        dataset_value: datasetValues[0],
+        lower_bound: boundsValues[0],
+        upper_bound: boundsValues[boundsValues.length - 1],
+        filters: props.config.filters
+      };
+      props.onConfigChange(newConfig);
+    }
   }
 
   // Selects are quite a PITA
@@ -434,18 +489,149 @@ function DataPaneToolbar(props: any) {
           </div>
         </div>
       </div>
-
-
-
       <div style={{flexGrow: 0, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px'}}></div>
     </div>
   );
 }
 
+function formatDataValue(value: any, classification: string) {
+  var result: string = "";
+
+  if (value == null) {
+    return "N/A";
+  }
+
+  if (classification == "price" && !isNaN(value)) {
+    result = (value < 0) ? ("-$" + Math.abs(value).toFixed(2)) : ("$" + value.toFixed(2));
+  } else if (classification == "percentage" && !isNaN(value)) {
+    result = (value * 100).toFixed(2) + "%";
+  } else if (classification == "date_millis" && !isNaN(value)) {
+    result = (new Date(value)).toISOString().split("T")[0];
+  } else if (classification == "greeks" && !isNaN(value)) {
+    result = value.toFixed(2);
+  } else {
+    result = value;
+  }
+
+  return result;
+}
+
+function formatChartData(filteredData: any, chartType: string) {
+  var newData: any = {};
+  var didAddLabels: boolean = false;
+  for (var series in filteredData) {
+    var newSeriesPoints: any[] = [];
+    for (var pointInd in filteredData[series]) {
+      if (chartType == "line") {
+        newSeriesPoints.push({x: filteredData[series][pointInd][0], y: filteredData[series][pointInd][1]});
+      } else if (chartType == "bar") {
+        if (!didAddLabels) {
+          if (newData.labels == null) {
+            newData.labels = [];
+          }
+          newData.labels.push(filteredData[series][pointInd][0]);
+        }
+        newSeriesPoints.push(filteredData[series][pointInd][1]);
+      }
+    }
+    didAddLabels = true;
+    newData[series] = newSeriesPoints;
+  }
+
+  return newData;
+}
+
+function formatTableData(filteredData: any) {
+  var result: any[][] = [];
+
+  for (var series in filteredData) {
+    const seriesArr: any[] = filteredData[series];
+    for (var indVal in seriesArr) {
+      var index: number = Number(indVal);
+      if (index >= result.length) {
+        var newRow: any[] = [];
+        newRow.push(filteredData[series][index][0]);
+        result.push(newRow);
+      }
+
+      // make sure values align in row
+      if (filteredData[series][index][0] == result[index][0]) {
+        result[index].push(filteredData[series][index][1]);
+      } else {
+        result[index].push("ERR");
+      }
+    }
+  }
+
+  return result;
+
+}
+
+function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
+  const lookup: any = optionsChain.lookup;
+  const entry: any = lookup[config.dataset_type];
+  const callsAndPuts: any = entry[config.dataset_value];
+
+  var callPoints: any[] = [];
+  var putPoints: any[] = [];
+
+  var reachedLowerBound: boolean = false;
+  var reachedUpperBound: boolean = false;
+  var lowerBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.lower_bound) : Date.parse(config.lower_bound);
+  var upperBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.upper_bound) : Date.parse(config.upper_bound);
+
+  var result: any = {};
+
+  if (callsAndPuts != null) {
+    const calls: string[] = callsAndPuts.call;
+    const puts: string[] = callsAndPuts.put;
+
+    var dataset: Contract[] = [];
+    for (var i in calls) {
+      const call: any = optionsChain.contracts[calls[i]];
+      const put: any = optionsChain.contracts[puts[i]];
+
+      // determine bounds comparison value for this options pair
+      var currentBoundVal: number = 0;
+      if (call != null && config.dataset_type == "byExpiration") {
+        currentBoundVal = call.strike;
+      } else if (call != null) {
+        currentBoundVal = call.expiration_date_integer_millis;
+      }
+
+      // found lower bound; start adding entries
+      if (currentBoundVal >= lowerBoundVal) {
+        reachedLowerBound = true;
+      }
+
+      // add points to chart if within bounds
+      if (call != null && put != null && reachedLowerBound && !reachedUpperBound) {
+        callPoints.push([call[config.x_axis], call[config.y_axis]]);
+        putPoints.push([put[config.x_axis], put[config.y_axis]]);
+      }
+
+      // found upper bound; stop adding entries
+      if (currentBoundVal >= upperBoundVal) {
+        reachedUpperBound = true;
+      }
+    }
+  }
+
+  if (config.option_type == "call" || config.option_type == "both") {
+    result["Calls"] = callPoints;
+  }
+
+  if (config.option_type == "put" || config.option_type == "both") {
+    result["Puts"] = putPoints;
+  }
+
+  return result;
+}
+
 /**
  * Produce a dataset within the desired parameters
  */
-function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
+function getFilteredDataOld(optionsChain: OptionsChain, config: DataConfig) {
 
   const lookup: any = optionsChain.lookup;
   const entry: any = lookup[config.dataset_type];
@@ -492,6 +678,7 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
         if (config.chart_type == "line") {
           callPoints.push({x: call[config.x_axis], y: call[config.y_axis]});
           putPoints.push({x: put[config.x_axis], y: put[config.y_axis]});
+
         } else if (config.chart_type == "bar") {
           result["labels"].push(call[config.x_axis]);
           callPoints.push(call[config.y_axis]);

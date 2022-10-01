@@ -76,7 +76,7 @@ body {
   }
 
   .mobile-hidden {
-    display: none;
+    display: none !important;
   }
 }
 
