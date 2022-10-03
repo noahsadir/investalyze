@@ -2,10 +2,6 @@
  * DataPane.tsx
  *
  * Data Pane for Analytics View
- *
- * TODO
- * - Implement table view option
- * - Implement range selection
  */
 
 import React from 'react';
@@ -31,38 +27,16 @@ import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 
-import { Chart as ChartJS, registerables } from 'chart.js';
-import { Line, Bar, Scatter } from 'react-chartjs-2';
+import {
+  MultiChartData, MultiChart
+} from './MultiChart';
 
 import {
   Contract, LookupTable, LookupTableEntry, OptionsChain
 } from '../interfaces';
+
 const fetch = require('node-fetch');
 
-ChartJS.register(...registerables);
-
-var colors = [
-  '#666ad1',
-  '#48a999',
-  '#fff263',
-  '#ff5f52',
-  '#ae52d4',
-  '#5eb8ff',
-  '#99d066',
-  '#ffad42',
-  '#ff7d47',
-  '#fa5788',
-  '#8559da',
-  '#63a4ff',
-  '#56c8d8',
-  '#6abf69',
-  '#e4e65e',
-  '#ffd149',
-];
-
-/**
- * Non-null values indicate a sorting range, while nulls should be ignored
- */
 interface DataFilters {
   option_type?: string;
   expiration_date_integer_millis?: [number, number];
@@ -104,11 +78,17 @@ interface DataConfig {
   filters: DataFilters;
 }
 
+interface FilteredDataPoints {
+  Calls?: [any, any][];
+  Puts?: [any, any][];
+}
+
 /**
  * Trading pane for Data View
  */
 export function DataPane(props: any) {
 
+  // mostly unused now, but necessary for figuring out dropdown items
   var filters: DataFilters = {
     expiration_date_integer_millis: undefined,
     strike: undefined,
@@ -138,9 +118,11 @@ export function DataPane(props: any) {
     mark: undefined
   };
 
+  // Generate (sorted) lists of expirattions and strikes
   const expirations: string[] = Object.keys(props.optionsChain.lookup.byExpiration);
   const strikes: string[] = Object.keys(props.optionsChain.lookup.byStrike).sort((a: string, b: string) => {return Number(a) - Number(b);});
 
+  // Initial configuration of data
   var [config, setConfig]: [DataConfig, any] = React.useState({
     x_axis: "strike",
     y_axis: "mark",
@@ -177,76 +159,8 @@ function DataPaneMainContent(props: any) {
 
   const filteredData: any = getFilteredData(props.optionsChain, props.config);
   const tableData: any = formatTableData(filteredData);
-  const chartData: any = formatChartData(filteredData, props.config.chart_type);
 
-  const chartJSOptions: any = {
-    legend: {
-      labels: {
-        color: '#ffffff',
-      },
-      display: true,
-    },
-    responsive: true,
-    maintainAspectRatio: false,
-    animations: null,
-    scales: {
-      y: {
-        type: 'linear',
-        ticks: {
-          color: '#ffffff'
-        },
-        grid: {
-          color: '#00000000'
-        }
-      },
-      x: {
-        type: (props.config.chart_type == "line") ? 'linear' : 'category',
-        ticks: {
-          color: '#ffffff'
-        },
-        grid: {
-          color: '#00000000'
-        }
-      }
-    }
-  };
-
-  var datasets: any[] = [];
-  for (var key in chartData) {
-    if (key != "labels") {
-      datasets.push({
-        label: key,
-        pointRadius: 2,
-        fill: false,
-        backgroundColor: colors[datasets.length],
-        borderColor: colors[datasets.length],
-        data: chartData[key],
-        showLine: true
-      });
-    }
-  }
-
-  const chart: any = (props.config.chart_type == "bar") ? (
-    <Bar
-      style={{flexGrow: 0, flexBasis: 0, width: '100%', height: '100%'}}
-      datasetIdKey='id'
-      data={{
-        labels: chartData.labels,
-        datasets: datasets
-      }}
-      options={chartJSOptions}
-    />
-  ) : (
-    <Scatter
-      style={{flexGrow: 0, flexBasis: 0, width: '100%', height: '100%'}}
-      datasetIdKey='id'
-      data={{
-        datasets: datasets
-      }}
-      options={chartJSOptions}
-    />
-  );
-
+  // Create table header
   var bodyRows: any[] = [];
   var headColumnCells: any[] = [];
   headColumnCells.push(<TableCell>{getFilterConfig(props.config.x_axis).name}</TableCell>);
@@ -254,6 +168,7 @@ function DataPaneMainContent(props: any) {
     headColumnCells.push(<TableCell>{getFilterConfig(props.config.y_axis).name + " (" + series + ")"}</TableCell>);
   }
 
+  // Create table body
   for (var index in tableData) {
     var bodyRowCells: any[] = [];
     for (var cellInd in tableData[index]) {
@@ -285,20 +200,12 @@ function DataPaneMainContent(props: any) {
       <div style={{margin: '4px', height: 'auto'}} className="mobile-hidden"></div>
       <div style={{flex: '2 0 0', display: 'flex'}} className="mobile-hidden">
         <Paper className="mobile-hidden" sx={{overflow: "hidden", display: "flex", flexFlow: "row", flex: "1 0 0"}} variant={"outlined"}>
-          <div style={{flex: "1 0 0", display: "flex", flexFlow: "column"}}>
-            <div style={{flex: "1 0 0"}}/>
-            <p style={{display: "block", writingMode: "vertical-rl",textAlign:"center",margin:0,padding:0,paddingBottom:24}}>{getFilterConfig(props.config.y_axis).name}</p>
-            <div style={{flex: "1 0 0"}}/>
-          </div>
-          <div style={{overflow: "hidden", display: "flex", flexFlow: "column", flex: "100 0 0"}}>
-            <div style={{flex: "1 0 0"}}/>
-            <div style={{flex: "100 0 0", overflow: "hidden", borderRadius: 8}}>
-              {chart}
-            </div>
-            <p style={{display: "block", margin:0,padding:0,textAlign:"center",height:24,lineHeight:"24px"}}>{getFilterConfig(props.config.x_axis).name}</p>
-            <div style={{flex: "1 0 0"}}/>
-          </div>
-          <div style={{flex: "1 0 0"}}/>
+          <MultiChart
+            data={filteredData as MultiChartData}
+            style={{display: 'flex', flex: '1 0 0'}}
+            chartType={props.config.chart_type}
+            xAxisLabel={getFilterConfig(props.config.x_axis).name}
+            yAxisLabel={getFilterConfig(props.config.y_axis).name}/>
         </Paper>
       </div>
 
@@ -494,6 +401,9 @@ function DataPaneToolbar(props: any) {
   );
 }
 
+/**
+ * Convert raw value into human-readable string
+ */
 function formatDataValue(value: any, classification: string) {
   var result: string = "";
 
@@ -516,32 +426,13 @@ function formatDataValue(value: any, classification: string) {
   return result;
 }
 
-function formatChartData(filteredData: any, chartType: string) {
-  var newData: any = {};
-  var didAddLabels: boolean = false;
-  for (var series in filteredData) {
-    var newSeriesPoints: any[] = [];
-    for (var pointInd in filteredData[series]) {
-      if (chartType == "line") {
-        newSeriesPoints.push({x: filteredData[series][pointInd][0], y: filteredData[series][pointInd][1]});
-      } else if (chartType == "bar") {
-        if (!didAddLabels) {
-          if (newData.labels == null) {
-            newData.labels = [];
-          }
-          newData.labels.push(filteredData[series][pointInd][0]);
-        }
-        newSeriesPoints.push(filteredData[series][pointInd][1]);
-      }
-    }
-    didAddLabels = true;
-    newData[series] = newSeriesPoints;
-  }
+/**
+ * Format data in a way that can easily be processed for a table.
+ */
+function formatTableData(filteredDataInput: FilteredDataPoints) {
+  // need to cast data as any for proper iteration
+  const filteredData: any = filteredDataInput as any;
 
-  return newData;
-}
-
-function formatTableData(filteredData: any) {
   var result: any[][] = [];
 
   for (var series in filteredData) {
@@ -567,6 +458,10 @@ function formatTableData(filteredData: any) {
 
 }
 
+/**
+ * Retrieve contracts in the options chain which meet the specified config,
+ * then return the data in a format which can be processed for visualizations.
+ */
 function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
   const lookup: any = optionsChain.lookup;
   const entry: any = lookup[config.dataset_type];
@@ -580,7 +475,7 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
   var lowerBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.lower_bound) : Date.parse(config.lower_bound);
   var upperBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.upper_bound) : Date.parse(config.upper_bound);
 
-  var result: any = {};
+  var result: FilteredDataPoints = {};
 
   if (callsAndPuts != null) {
     const calls: string[] = callsAndPuts.call;
@@ -608,82 +503,6 @@ function getFilteredData(optionsChain: OptionsChain, config: DataConfig) {
       if (call != null && put != null && reachedLowerBound && !reachedUpperBound) {
         callPoints.push([call[config.x_axis], call[config.y_axis]]);
         putPoints.push([put[config.x_axis], put[config.y_axis]]);
-      }
-
-      // found upper bound; stop adding entries
-      if (currentBoundVal >= upperBoundVal) {
-        reachedUpperBound = true;
-      }
-    }
-  }
-
-  if (config.option_type == "call" || config.option_type == "both") {
-    result["Calls"] = callPoints;
-  }
-
-  if (config.option_type == "put" || config.option_type == "both") {
-    result["Puts"] = putPoints;
-  }
-
-  return result;
-}
-
-/**
- * Produce a dataset within the desired parameters
- */
-function getFilteredDataOld(optionsChain: OptionsChain, config: DataConfig) {
-
-  const lookup: any = optionsChain.lookup;
-  const entry: any = lookup[config.dataset_type];
-  const callsAndPuts: any = entry[config.dataset_value];
-
-  var callPoints: any[] = [];
-  var putPoints: any[] = [];
-
-  var reachedLowerBound: boolean = false;
-  var reachedUpperBound: boolean = false;
-  var lowerBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.lower_bound) : Date.parse(config.lower_bound);
-  var upperBoundVal: number = (config.dataset_type == "byExpiration") ? Number(config.upper_bound) : Date.parse(config.upper_bound);
-
-  var result: any = {};
-
-  if (config.chart_type == "bar") {
-    result["labels"] = [];
-  }
-
-  if (callsAndPuts != null) {
-    const calls: string[] = callsAndPuts.call;
-    const puts: string[] = callsAndPuts.put;
-
-    var dataset: Contract[] = [];
-    for (var i in calls) {
-      const call: any = optionsChain.contracts[calls[i]];
-      const put: any = optionsChain.contracts[puts[i]];
-
-      // determine bounds comparison value for this options pair
-      var currentBoundVal: number = 0;
-      if (call != null && config.dataset_type == "byExpiration") {
-        currentBoundVal = call.strike;
-      } else if (call != null) {
-        currentBoundVal = call.expiration_date_integer_millis;
-      }
-
-      // found lower bound; start adding entries
-      if (currentBoundVal >= lowerBoundVal) {
-        reachedLowerBound = true;
-      }
-
-      // add points to chart if within bounds
-      if (call != null && put != null && reachedLowerBound && !reachedUpperBound) {
-        if (config.chart_type == "line") {
-          callPoints.push({x: call[config.x_axis], y: call[config.y_axis]});
-          putPoints.push({x: put[config.x_axis], y: put[config.y_axis]});
-
-        } else if (config.chart_type == "bar") {
-          result["labels"].push(call[config.x_axis]);
-          callPoints.push(call[config.y_axis]);
-          putPoints.push(put[config.y_axis]);
-        }
       }
 
       // found upper bound; stop adding entries
