@@ -26,7 +26,15 @@ import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Backdrop from '@mui/material/Backdrop';
 import CircularProgress from '@mui/material/CircularProgress';
-import SearchIcon from '@mui/icons-material/Search';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import TextField from '@mui/material/TextField';
+
 import {
   Contract, LookupTable, LookupTableEntry, OptionsChain
 } from './interfaces';
@@ -85,7 +93,7 @@ function SearchBar(props: any) {
   return (
     <Search>
       <SearchIconWrapper>
-        <SearchIcon/>
+        <SearchRoundedIcon/>
       </SearchIconWrapper>
       <StyledInputBase
         autoFocus={true}
@@ -102,8 +110,8 @@ function SearchBar(props: any) {
 /**
  * Fetch options chain for the symbol
  */
-function loadSymbol(symbol: string, callback: (success: boolean, data: any) => void) {
-
+function loadSymbol(symbol: string, apiKey: string, callback: (success: boolean, data: any) => void) {
+  console.log(apiKey);
   if (symbol == "@TEST") {
     callback(true, require('./test_data.json'));
   } else {
@@ -116,7 +124,7 @@ function loadSymbol(symbol: string, callback: (success: boolean, data: any) => v
       },
       body: JSON.stringify({
         'symbol': symbol,
-        'api_key': ""
+        'api_key': apiKey
       })
     };
 
@@ -124,7 +132,9 @@ function loadSymbol(symbol: string, callback: (success: boolean, data: any) => v
     fetch(url, config)
     .then((response: any) => {
       status = response.status;
-      return response.json();
+      if (status == 200) {
+        return response.json();
+      }
     })
     .then((data: any) => {
       if (status == 200) {
@@ -169,25 +179,41 @@ function App() {
   const [loadingScreenOpen, setLoadingScreenOpen] = React.useState(false);
   const [optionsChains, setOptionsChains]: [{[key: string]: OptionsChain}, any] = React.useState({});
   const [updates, setUpdates] = React.useState(0);
+  const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
+  const [apiKey, setAPIKey] = React.useState("");
 
   const handleSymbolEntered = (symbol: string) => {
     setLoadingScreenOpen(true);
-    loadSymbol(symbol, (success, data) => {
-      optionsChains[symbol] = data;
+    loadSymbol(symbol, apiKey, (success, data) => {
+      if (success) {
+        optionsChains[symbol] = data;
+      } else {
+        console.log("error");
+      }
       setLoadingScreenOpen(false);
-
       // necessary to force state update (particularly with @TEST symbol)
       setUpdates(updates + 1);
+
     });
-  }
+  };
+
+  const handleSettingsDialogClose = (settings: any) => {
+    setSettingsDialogOpen(false);
+    setAPIKey(settings.api_key);
+  };
+
+  const handleSettingsDialogOpen = () => {
+    setSettingsDialogOpen(true);
+  };
 
   return (
     <div className="App" style={{height: '100%', display: 'flex', flexFlow: 'column'}}>
-      <MainToolbar onSymbolEnter={handleSymbolEntered}/>
+      <MainToolbar onSymbolEnter={handleSymbolEntered} onSettingsDialogOpen={handleSettingsDialogOpen}/>
       <MainContent optionsChains={optionsChains}/>
       <Backdrop sx={{zIndex: (theme) => theme.zIndex.drawer + 1}} open={loadingScreenOpen}>
         <CircularProgress color="inherit"/>
       </Backdrop>
+      <SettingsDialog isOpen={settingsDialogOpen} onClose={handleSettingsDialogClose}/>
     </div>
   );
 }
@@ -200,12 +226,21 @@ function MainToolbar(props: any) {
     <AppBar position="static" sx={{padding: 0}}>
       <Toolbar style={{display: 'flex', padding: 0}}>
         <div className="hbox-mobile" style={{flexGrow: 1}}>
-          <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0, paddingLeft: 16}}>
-            <div style={{flexGrow: 1}}></div>
-            <p style={{margin: 0, padding: 0, textAlign: 'left', fontSize: 24, fontWeight: 'bold'}}>
-              Investalyze
-            </p>
-            <div style={{flexGrow: 1}}></div>
+          <div style={{display: 'flex', flexGrow: 0, paddingLeft: 8}}>
+            <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0}}>
+              <div style={{flexGrow: 1}}></div>
+              <IconButton onClick={props.onSettingsDialogOpen} size="medium" edge="start" color="inherit" aria-label="menu" sx={{margin: 0, width: '48px', height: '48px'}}>
+                <TuneRoundedIcon/>
+              </IconButton>
+              <div style={{flexGrow: 1}}></div>
+            </div>
+            <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0, marginLeft: '8px'}}>
+              <div style={{flexGrow: 1}}></div>
+              <p style={{margin: 0, padding: 0, textAlign: 'left', fontSize: 24, fontWeight: 'bold'}}>
+                Investalyze
+              </p>
+              <div style={{flexGrow: 1}}></div>
+            </div>
           </div>
           <div className="hbox-mobile-spacer" style={{flexGrow: 1}}></div>
           <div className="toolbar-search" style={{flexGrow: 0}}>
@@ -216,6 +251,36 @@ function MainToolbar(props: any) {
         </div>
       </Toolbar>
     </AppBar>
+  );
+}
+
+function SettingsDialog(props: any) {
+
+  const [apiKeyField, setAPIKeyField] = React.useState("");
+
+  const handleClose = () => {
+    props.onClose({
+      api_key: apiKeyField
+    });
+  };
+
+  const handleTextInputChange = (event: any) => {
+    setAPIKeyField(event.target.value);
+  };
+
+  return (
+    <Dialog open={props.isOpen} onClose={handleClose}>
+      <DialogTitle>Settings</DialogTitle>
+      <DialogContent>
+        <div style={{display: 'flex'}}>
+          <TextField onChange={handleTextInputChange} placeholder={"Tradier API Key"} size={"small"} sx={{minWidth: '128px'}} value={apiKeyField}/>
+          <Button href={"https://documentation.tradier.com/brokerage-api"} sx={{marginLeft: '8px'}} variant={"outlined"}>Get Key</Button>
+        </div>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose}>Done</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

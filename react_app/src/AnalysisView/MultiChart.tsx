@@ -148,7 +148,6 @@ export function MultiChart(props: any) {
       <div style={{flex: "1 0 0"}}/>
     </div>
   );
-
 }
 
 /**

@@ -38,6 +38,9 @@ function fetchTradierJSON(url: string, api_key: string, callback: (status: numbe
     } else {
       callback(status, {success: false, message: "Error fetching data.", error: "ERR_DATA_FETCH", details: data});
     }
+  })
+  .catch((error: any) => {
+    callback(500, {success: false, message: "Error fetching data.", error: "ERR_DATA_INVALID", details: error});
   });
 }
 
@@ -204,7 +207,7 @@ function formatChain(data: any[], quote: any) {
       interest_equivalent: calculated_interest_equivalent
     };
   }
-  
+
   return output;
 }
 
