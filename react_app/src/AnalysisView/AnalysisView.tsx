@@ -37,7 +37,7 @@ export function AnalysisView(props: any) {
   const toggleStyle = {
     flexGrow: 1
   };
-  
+
   /*
   <ToggleButton style={toggleStyle} value="summary">Summary</ToggleButton>
   <ToggleButton style={toggleStyle} value="data">Data</ToggleButton>
@@ -50,6 +50,7 @@ export function AnalysisView(props: any) {
       <Paper style={{margin: 8, marginBottom: 0, padding: 8, display: 'flex', flexGrow: 0}} elevation={3}>
         <ToggleButtonGroup style={{display: 'flex', flexGrow: 1}} value={analysisType} color="primary" onChange={handleAnalysisTypeChange} exclusive>
           <ToggleButton style={toggleStyle} value="data">Data</ToggleButton>
+          <ToggleButton style={toggleStyle} value="metrics">Metrics</ToggleButton>
         </ToggleButtonGroup>
       </Paper>
       <div style={{flexGrow: 1, display: 'flex'}}>

@@ -203,6 +203,7 @@ function DataPaneMainContent(props: any) {
           <MultiChart
             data={filteredData as MultiChartData}
             style={{display: 'flex', flex: '1 0 0'}}
+            usesDate={props.config.dataset_type == "byStrike"}
             chartType={props.config.chart_type}
             xAxisLabel={getFilterConfig(props.config.x_axis).name}
             yAxisLabel={getFilterConfig(props.config.y_axis).name}/>
@@ -578,7 +579,7 @@ function getFilterConfig(filterID: string) {
     },
     open_interest: {
       name: "Open Interest",
-      format: "Integer"
+      format: "integer"
     },
     trade_date_integer_millis: {
       name: "Trade Date",

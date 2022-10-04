@@ -14,6 +14,7 @@ import React from 'react';
 import '../App.css';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import { Line, Bar, Scatter } from 'react-chartjs-2';
+import 'chartjs-adapter-date-fns';
 
 ChartJS.register(...registerables);
 
@@ -75,7 +76,10 @@ export function MultiChart(props: any) {
         }
       },
       x: {
-        type: (props.chartType == "line") ? 'linear' : 'category',
+        type: (props.chartType == "line") ? (props.usesDate ? 'time' : 'linear') : 'category',
+        time: (props.usesDate) ? {
+          unit: 'month'
+        } : null,
         ticks: {
           color: '#ffffff'
         },

@@ -107,7 +107,7 @@ function loadSymbol(symbol: string, callback: (success: boolean, data: any) => v
   if (symbol == "@TEST") {
     callback(true, require('./test_data.json'));
   } else {
-    var url: string = "https://" + window.location.host + "/api/options_chain"
+    var url: string = "https://" + window.location.host + "/api/options_chain";
     var config: any = {
       method: 'post',
       headers: {
