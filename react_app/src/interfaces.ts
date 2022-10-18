@@ -26,6 +26,8 @@ export interface Contract {
   leverage_ratio: number;
   interest_equivalent: number;
   mark: number;
+  type: string;
+  symbol: string;
 }
 
 export interface LookupTable {

@@ -204,7 +204,8 @@ function formatChain(data: any[], quote: any) {
       intrinsic_value: calculated_intrinsic,
       extrinsic_value: calculated_extrinsic,
       leverage_ratio: calculated_leverage_ratio,
-      interest_equivalent: calculated_interest_equivalent
+      interest_equivalent: calculated_interest_equivalent,
+      symbol: symbol
     };
   }
 

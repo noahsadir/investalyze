@@ -10,6 +10,9 @@
  *
  */
 
+
+
+
 import React from 'react';
 import './App.css';
 import { styled, alpha } from '@mui/material/styles';
@@ -236,7 +239,7 @@ function MainToolbar(props: any) {
             </div>
             <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0, marginLeft: '8px'}}>
               <div style={{flexGrow: 1}}></div>
-              <p style={{margin: 0, padding: 0, textAlign: 'left', fontSize: 24, fontWeight: 'bold'}}>
+              <p style={{margin: 0, padding: 0, textAlign: 'left', fontSize: 20, fontWeight: 'bold'}}>
                 Investalyze
               </p>
               <div style={{flexGrow: 1}}></div>

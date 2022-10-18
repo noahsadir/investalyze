@@ -51,6 +51,7 @@ export function AnalysisView(props: any) {
         <ToggleButtonGroup style={{display: 'flex', flexGrow: 1}} value={analysisType} color="primary" onChange={handleAnalysisTypeChange} exclusive>
           <ToggleButton style={toggleStyle} value="data">Data</ToggleButton>
           <ToggleButton style={toggleStyle} value="metrics">Metrics</ToggleButton>
+          <ToggleButton style={toggleStyle} value="trading">Trading</ToggleButton>
         </ToggleButtonGroup>
       </Paper>
       <div style={{flexGrow: 1, display: 'flex'}}>
