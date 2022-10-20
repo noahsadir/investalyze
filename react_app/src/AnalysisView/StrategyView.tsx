@@ -28,6 +28,10 @@ import InputLabel from '@mui/material/InputLabel';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 
+import {
+  MultiChartData, MultiChart
+} from './MultiChart';
+
 import { red, green, grey } from '@mui/material/colors';
 
 import {
@@ -72,6 +76,16 @@ const Transition = React.forwardRef(function Transition(
 
 export function StrategyView(props: any) {
 
+  const netPremium: number = netPremiumForStrategy(props.strategy);
+
+  var legDataString: string = "";
+  for (var index in props.strategy.legs) {
+    if (legDataString != "") {
+      legDataString += ", ";
+    }
+    legDataString += ((props.strategy.legs[index].position_size > 0 ? "LONG " : "SHORT ") + "$" + props.strategy.legs[index].contract.strike + props.strategy.legs[index].contract.option_type.charAt(0).toUpperCase());
+  }
+
   return (
     <Dialog fullScreen open={props.isOpen} TransitionComponent={Transition}>
       <AppBar sx={{position: 'relative'}}>
@@ -79,9 +93,19 @@ export function StrategyView(props: any) {
           <IconButton edge="start" color="inherit" onClick={(event: any) => props.onClose()} aria-label="close">
             <CloseRoundedIcon/>
           </IconButton>
-          <Typography>
-          {props.title}
-          </Typography>
+          <div style={{display: 'flex', flexGrow: 0, flexBasis: 0, flexFlow: 'column', marginRight: '16px'}}>
+            <Typography sx={{fontWeight: 800, fontSize: '16px', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>{props.title}</Typography>
+            <Typography sx={{fontSize: '12px', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>{legDataString}</Typography>
+          </div>
+          <div style={{display: 'flex', flexGrow: 1}}></div>
+          <div style={{display: 'flex', flexGrow: 0, flexBasis: 0, flexFlow: 'column', marginRight: '16px'}}>
+            <Typography sx={{fontSize: '12px', whiteSpace: 'nowrap'}}>{"NET " + (netPremium < 0 ? "CREDIT" : "DEBIT")}</Typography>
+            <Typography sx={{fontSize: '16px', whiteSpace: 'nowrap'}}>{"$" + Math.abs(netPremium).toFixed(2)}</Typography>
+          </div>
+          <div style={{display: 'flex', flexGrow: 0, flexBasis: 0, flexFlow: 'column', marginRight: '8px'}}>
+            <Typography sx={{fontSize: '12px', whiteSpace: 'nowrap'}}>{props.optionsChain.quote.symbol + " SPOT"}</Typography>
+            <Typography sx={{fontSize: '16px', whiteSpace: 'nowrap'}}>{"$" + props.optionsChain.spot_price.toFixed(2)}</Typography>
+          </div>
         </Toolbar>
       </AppBar>
       <StrategyViewMainContent isOpen={props.isOpen} strategy={props.strategy} optionsChain={props.optionsChain}/>
@@ -198,14 +222,10 @@ function ForecastView(props: any) {
   const calculatedSpotInterval: number = (spotIntervalType == "dollar") ? spotInterval : (props.optionsChain.spot_price * (0.01 * spotInterval));
 
   var forecastData: any = strategyValueForecastTable(props.strategy, props.optionsChain.spot_price, props.optionsChain.fetch_date, dateInterval, calculatedSpotInterval, spotIntervalCount);
-  var netPremium: number = (props.strategy.share_count * props.strategy.underlying_cost_basis);
+  const netPremium: number = netPremiumForStrategy(props.strategy);
 
-  for (var index in props.strategy.legs) {
-    const leg: StrategyLeg = props.strategy.legs[index];
-    netPremium += (leg.premium * leg.position_size * 100);
-  }
-
-  const tableData: any = generateTableData(forecastData, netPremium, props.optionsChain.spot_price);
+  const tableData: any = generateTableData(forecastData, netPremium, props.optionsChain.spot_price, props.optionsChain.quote.symbol);
+  const chartData: MultiChartData = generateChartData(forecastData);
 
   const handleConfigChange = (config: string, value: any) => {
     if (config == "chart_type") {
@@ -220,11 +240,11 @@ function ForecastView(props: any) {
   }
 
   return (
-    <Paper sx={{flexGrow: 1, flexFlow: 'column', display: 'flex'}} variant={"outlined"}>
+    <Paper sx={{flexGrow: 1, flexFlow: 'column', display: 'flex'}}>
       <ForecastToolbar config={{chart_type: chartType, spot_interval_amount: spotInterval, spot_interval_type: spotIntervalType, date_interval_amount: dateInterval}}
         onConfigChange={handleConfigChange}/>
       <Divider light style={{margin: '8px'}}/>
-      <Paper sx={{flexGrow: 1, flexFlow: 'column', display: 'flex', overflow: 'hidden', margin: '8px'}}>
+      <Paper variant="outlined" sx={{flexGrow: 1, flexFlow: 'column', display: (chartType == "table" ? 'flex' : 'none'), overflow: 'hidden', margin: '8px'}}>
         <TableContainer sx={{flex: '1 0 0', 'minHeight': 0}}>
           <Table stickyHeader aria-label="sticky table">
             <TableHead>
@@ -238,18 +258,39 @@ function ForecastView(props: any) {
           </Table>
         </TableContainer>
       </Paper>
+      <Paper variant="outlined" sx={{flexGrow: 1, flexFlow: 'column', display: (chartType == "chart" ? 'flex' : 'none'), overflow: 'hidden', margin: '8px'}}>
+        <MultiChart
+          data={chartData}
+          style={{display: 'flex', flex: '1 0 0'}}
+          usesDate={false}
+          chartType={"line"}
+          xAxisLabel={"Spot Price"}
+          yAxisLabel={"Strategy Value"}/>
+      </Paper>
     </Paper>
   );
 }
 
-function generateTableData(forecastData: any, netPremium: number, currentSpot: number) {
+function generateChartData(forecastData: any) {
+  var result: MultiChartData = {};
+  for (var date in forecastData) {
+    const dateString: string = humanReadableDate(Number(date));
+    result[dateString] = [];
+    for (var spot in forecastData[date]) {
+      result[dateString].push([Number(spot), forecastData[date][spot]]);
+    }
+  }
+  return result;
+}
+
+function generateTableData(forecastData: any, netPremium: number, currentSpot: number, symbol: string) {
   var tableHeadCells: any[] = [];
   var tableBodyRows: any[] = [];
 
   var invertedForecastData: any = {};
   tableHeadCells.push(
-    <TableCell sx={{whiteSpace: 'nowrap', backgroundColor: '#000000', position: 'sticky', left: 0}}>
-    Spot Price
+    <TableCell sx={{whiteSpace: 'nowrap', backgroundColor: '#000000', position: 'sticky', left: 0, zIndex: 3}}>
+    {symbol + " Price"}
     </TableCell>
   );
   for (var date in forecastData) {
@@ -310,4 +351,15 @@ function getNetProfitPercentage(openValue: number, closeValue: number) {
     ratio *= -1;
   }
   return ((ratio >= 0) ? "+" : "-") + Math.abs(ratio * 100).toFixed(2) + "%";
+}
+
+function netPremiumForStrategy(strategy: OptionStrategy) {
+  var netPremium: number = (strategy.share_count * strategy.underlying_cost_basis);
+
+  for (var index in strategy.legs) {
+    const leg: StrategyLeg = strategy.legs[index];
+    netPremium += (leg.premium * leg.position_size * 100);
+  }
+
+  return netPremium;
 }

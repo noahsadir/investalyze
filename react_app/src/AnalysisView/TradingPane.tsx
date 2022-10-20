@@ -64,6 +64,8 @@ export function TradingPane(props: any) {
 
   var [strategyViewOpen, setStrategyViewOpen]: [boolean, any] = React.useState(false);
 
+  const strategyName: string = getStrategyName(strategy);
+
   const handleAddLeg = (id: string) => {
     strategy.legs.push({
       contract: props.optionsChain.contracts[id],
@@ -117,7 +119,12 @@ export function TradingPane(props: any) {
   }
   return (
     <div style={{display: (props.isVisible ? 'flex' : 'none'), flexFlow: 'column', flexGrow: 1}}>
-      <StrategyView strategy={strategy} optionsChain={props.optionsChain} isOpen={strategyViewOpen} title="Strategy" onClose={handleStrategyViewClose}/>
+      <StrategyView
+        strategy={strategy}
+        optionsChain={props.optionsChain}
+        isOpen={strategyViewOpen}
+        title={props.optionsChain.quote.symbol + " " + strategyName}
+        onClose={handleStrategyViewClose}/>
       <ToggleButtonGroup
         style={{display: 'flex', marginTop: '8px'}}
         value={selectedView}
@@ -136,7 +143,7 @@ export function TradingPane(props: any) {
         </div>
         <div style={{margin: '4px', height: 'auto'}} className="mobile-hidden"></div>
         <div style={{display: 'flex', flex: '3 0 0'}} className={selectedView == "builder" ? "" : "mobile-hidden"}>
-          <StrategySummaryView onStrategyViewClick={handleStrategyViewOpen} optionsChain={props.optionsChain} strategy={strategy} onLegRemove={handleRemoveLeg} onLegPremiumChange={handleLegPremiumChange} onLegSizeChange={handleLegSizeChange}/>
+          <StrategySummaryView strategyName={strategyName} onStrategyViewClick={handleStrategyViewOpen} optionsChain={props.optionsChain} strategy={strategy} onLegRemove={handleRemoveLeg} onLegPremiumChange={handleLegPremiumChange} onLegSizeChange={handleLegSizeChange}/>
         </div>
       </div>
     </div>
@@ -156,7 +163,7 @@ function StrategySummaryView(props: any) {
 
   return (
     <Paper sx={{display: 'flex', flexGrow: 1, flexBasis: 0, flexFlow: 'column'}} variant={"outlined"}>
-      <SummaryInfoView strategy={props.strategy} optionsChain={props.optionsChain} onStrategyViewClick={props.onStrategyViewClick}/>
+      <SummaryInfoView strategyName={props.strategyName} strategy={props.strategy} optionsChain={props.optionsChain} onStrategyViewClick={props.onStrategyViewClick}/>
       <Divider light sx={{margin: '8px'}}/>
       <List>
         {legListItems}
@@ -261,7 +268,7 @@ function SummaryInfoView(props: any) {
 
   return (
     <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0, margin: '8px', marginBottom: 0}}>
-      <Typography sx={{textAlign: 'left', fontSize: '20px', fontWeight: 600, marginBottom: '8px'}}>{getStrategyName(props.strategy)}</Typography>
+      <Typography sx={{textAlign: 'left', fontSize: '20px', fontWeight: 600, marginBottom: '8px'}}>{props.strategyName}</Typography>
       <div style={{marginBottom: '8px', display: ((maxLoss == Infinity) ? 'flex' : 'none')}}>
         <WarningRoundedIcon style={{color: yellow[400], marginRight: '8px', width: '42px', height: '42px'}}/>
         <div style={{display: 'flex', flexFlow: 'column'}}>
