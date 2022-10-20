@@ -26,8 +26,6 @@ export interface Contract {
   leverage_ratio: number;
   interest_equivalent: number;
   mark: number;
-  type: string;
-  symbol: string;
 }
 
 export interface LookupTable {
@@ -53,4 +51,19 @@ export interface OptionsChain {
   quote: StockQuote;
   spot_price: number;
   fetch_date: number;
+}
+
+export interface OptionStrategy {
+  legs: StrategyLeg[];
+  share_count: number;
+  underlying_cost_basis: number;
+  spot_price: number;
+  fetch_date: number;
+}
+
+export interface StrategyLeg {
+  contract: Contract;
+  id: string;
+  premium: number;
+  position_size: number;
 }

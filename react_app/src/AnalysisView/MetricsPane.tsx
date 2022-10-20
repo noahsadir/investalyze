@@ -61,7 +61,7 @@ export function MetricsPane(props: any) {
   };
 
   return ((props.optionsChain != null) ? (
-    <div style={{display: 'flex', flexFlow: 'column', flexGrow: 1}}>
+    <div style={{display: (props.isVisible ? 'flex' : 'none'), flexFlow: 'column', flexGrow: 1}}>
       <MetricsPaneToolbar
         onConfigChange={handleConfigChange}
         metricType={metricType}
@@ -74,7 +74,7 @@ export function MetricsPane(props: any) {
         chartType={chartType}/>
     </div>
   ) : (
-    <div>
+    <div style={{display: (props.isVisible ? 'flex' : 'none')}}>
     An error occurred with options chain data.
     </div>
   ));

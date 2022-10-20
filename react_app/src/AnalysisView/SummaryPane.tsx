@@ -20,7 +20,7 @@ const fetch = require('node-fetch');
  */
 export function SummaryPane(props: any) {
   return (
-    <div style={{display: "flex", flexGrow: 1}}>
+    <div style={{display: (props.isVisible ? 'flex' : 'none'), flexGrow: 1}}>
 
     </div>
   );

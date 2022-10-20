@@ -27,27 +27,19 @@ import TextField from '@mui/material/TextField';
 
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
-import { red } from '@mui/material/colors';
+import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
+import { red, yellow } from '@mui/material/colors';
+import { StrategyView } from './StrategyView';
 
 import {
-  Contract, LookupTable, LookupTableEntry, OptionsChain
+  Contract, LookupTable, LookupTableEntry, OptionsChain, OptionStrategy, StrategyLeg
 } from '../interfaces';
+
+import {
+  calculateInflectionPrices
+} from '../Pricing';
+
 const fetch = require('node-fetch');
-
-interface OptionStrategy {
-  legs: StrategyLeg[];
-  share_count: number;
-  underlying_cost_basis: number;
-  spot_price: number;
-  fetch_date: number;
-}
-
-interface StrategyLeg {
-  contract: Contract;
-  id: string;
-  premium: number;
-  position_size: number;
-}
 
 const toggleStyle = {
   flexGrow: 1
@@ -69,6 +61,8 @@ export function TradingPane(props: any) {
   var [updateCounter, setUpdateCounter]: [boolean, any] = React.useState(false);
 
   var [selectedView, setSelectedView]: [string, any] = React.useState("list");
+
+  var [strategyViewOpen, setStrategyViewOpen]: [boolean, any] = React.useState(false);
 
   const handleAddLeg = (id: string) => {
     strategy.legs.push({
@@ -114,8 +108,16 @@ export function TradingPane(props: any) {
     setUpdateCounter(!updateCounter);
   }
 
+  const handleStrategyViewClose = () => {
+    setStrategyViewOpen(false);
+  }
+
+  const handleStrategyViewOpen = () => {
+    setStrategyViewOpen(true);
+  }
   return (
-    <div style={{display: 'flex', flexFlow: 'column', flexGrow: 1}}>
+    <div style={{display: (props.isVisible ? 'flex' : 'none'), flexFlow: 'column', flexGrow: 1}}>
+      <StrategyView strategy={strategy} optionsChain={props.optionsChain} isOpen={strategyViewOpen} title="Strategy" onClose={handleStrategyViewClose}/>
       <ToggleButtonGroup
         style={{display: 'flex', marginTop: '8px'}}
         value={selectedView}
@@ -134,7 +136,7 @@ export function TradingPane(props: any) {
         </div>
         <div style={{margin: '4px', height: 'auto'}} className="mobile-hidden"></div>
         <div style={{display: 'flex', flex: '3 0 0'}} className={selectedView == "builder" ? "" : "mobile-hidden"}>
-          <StrategySummaryView strategy={strategy} onLegRemove={handleRemoveLeg} onLegPremiumChange={handleLegPremiumChange} onLegSizeChange={handleLegSizeChange}/>
+          <StrategySummaryView onStrategyViewClick={handleStrategyViewOpen} optionsChain={props.optionsChain} strategy={strategy} onLegRemove={handleRemoveLeg} onLegPremiumChange={handleLegPremiumChange} onLegSizeChange={handleLegSizeChange}/>
         </div>
       </div>
     </div>
@@ -154,7 +156,7 @@ function StrategySummaryView(props: any) {
 
   return (
     <Paper sx={{display: 'flex', flexGrow: 1, flexBasis: 0, flexFlow: 'column'}} variant={"outlined"}>
-      <SummaryInfoView strategy={props.strategy}/>
+      <SummaryInfoView strategy={props.strategy} optionsChain={props.optionsChain} onStrategyViewClick={props.onStrategyViewClick}/>
       <Divider light sx={{margin: '8px'}}/>
       <List>
         {legListItems}
@@ -217,7 +219,7 @@ function SummaryInfoView(props: any) {
     fontSize: '12px'
   };
 
-  var netPremium: number = 0;
+  var netPremium: number = (props.strategy.share_count * props.strategy.underlying_cost_basis);
   var netDelta: number = 0;
   var netGamma: number = 0;
   var netTheta: number = 0;
@@ -226,7 +228,7 @@ function SummaryInfoView(props: any) {
 
   for (var index in props.strategy.legs) {
     const leg: StrategyLeg = props.strategy.legs[index];
-    netPremium += (leg.premium * leg.position_size);
+    netPremium += (leg.premium * leg.position_size * 100);
     netDelta += (leg.contract.delta * leg.position_size * 100);
     netGamma += (leg.contract.gamma * leg.position_size * 100);
     netTheta += (leg.contract.theta * leg.position_size * 100);
@@ -234,9 +236,53 @@ function SummaryInfoView(props: any) {
     netRho += (leg.contract.rho * leg.position_size * 100);
   }
 
+  var inflectionPrices: any = calculateInflectionPrices(props.strategy);
+  var maxGain: number = Number.NEGATIVE_INFINITY;
+  var maxLoss: number = Number.POSITIVE_INFINITY;
+  var potOdds: string = "N/A"
+  for (var spot in inflectionPrices) {
+    const netProfit: number = inflectionPrices[spot] - netPremium;
+    if (netProfit < maxLoss) {
+      maxLoss = netProfit;
+    }
+    if (netProfit > maxGain) {
+      maxGain = netProfit;
+    }
+  }
+  maxLoss *= -1;
+  // 120 : 130
+  if (maxLoss != Infinity && maxGain != Infinity) {
+    potOdds = ((maxLoss / (maxGain + maxLoss)) * 100).toFixed(2) + "%";
+  }
+
+  const handleStrategyViewClick = (event: any) => {
+    props.onStrategyViewClick();
+  }
+
   return (
     <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0, margin: '8px', marginBottom: 0}}>
       <Typography sx={{textAlign: 'left', fontSize: '20px', fontWeight: 600, marginBottom: '8px'}}>{getStrategyName(props.strategy)}</Typography>
+      <div style={{marginBottom: '8px', display: ((maxLoss == Infinity) ? 'flex' : 'none')}}>
+        <WarningRoundedIcon style={{color: yellow[400], marginRight: '8px', width: '42px', height: '42px'}}/>
+        <div style={{display: 'flex', flexFlow: 'column'}}>
+          <Typography style={{color: yellow[400], fontWeight: 800, textAlign: 'left'}}>WARNING - UNDEFINED RISK TRADE</Typography>
+          <Typography style={{fontSize: '14px', textAlign: 'left'}}>This trade could result in substantial losses.</Typography>
+        </div>
+      </div>
+      <div style={{display: 'flex', marginBottom: '8px'}}>
+        <div style={{flexGrow: 1, flexBasis: 0}}>
+          <Typography sx={greekNameStyle}>MAX GAIN</Typography>
+          <Typography sx={{textAlign: 'left'}}>{(maxGain == Infinity) ? "Infinity" : ("$" + maxGain.toFixed(2))}</Typography>
+        </div>
+        <div style={{flexGrow: 1, flexBasis: 0}}>
+          <Typography sx={greekNameStyle}>MAX LOSS</Typography>
+          <Typography sx={{textAlign: 'left', color: ((maxLoss == Infinity) ? red[400] : null)}}>{(maxLoss == Infinity) ? "Infinity" : ("$" + maxLoss.toFixed(2))}</Typography>
+        </div>
+        <div style={{flexGrow: 1, flexBasis: 0}}>
+          <Typography sx={greekNameStyle}>POT ODDS</Typography>
+          <Typography sx={{textAlign: 'left'}}>{potOdds}</Typography>
+        </div>
+      </div>
       <div style={{display: 'flex', marginBottom: '8px'}}>
         <div style={{flexGrow: 1, flexBasis: 0}}>
           <Typography sx={greekNameStyle}>{"DELTA"}</Typography>
@@ -261,8 +307,7 @@ function SummaryInfoView(props: any) {
           <Typography sx={{textAlign: 'left'}}>{netVega.toFixed(2)}</Typography>
         </div>
         <div style={{flexGrow: 1, flexBasis: 0}}>
-          <Typography sx={greekNameStyle}>POT ODDS</Typography>
-          <Typography sx={{textAlign: 'left'}}>0.50</Typography>
+
         </div>
       </div>
       <div style={{display: 'flex'}}>
@@ -270,7 +315,7 @@ function SummaryInfoView(props: any) {
           <Typography sx={{textAlign: 'left', fontSize: '20px'}}>{(netPremium < 0 ? "Net Credit" : "Net Debit") + ": $" + Math.abs(netPremium).toFixed(2)}</Typography>
         </div>
         <div style={{flexGrow: 0, flexBasis: 0}} >
-          <Button style={{width: '128px', display: 'none'}} variant="contained">View</Button>
+          <Button style={{width: '128px'}} variant="contained" onClick={handleStrategyViewClick}>View</Button>
         </div>
       </div>
     </div>
@@ -601,7 +646,7 @@ function twoLegStrategy(strategy: OptionStrategy) {
     const longLeg: StrategyLeg | undefined = (leg1.position_size > 0) ? leg1 : ((leg2.position_size > 0) ? leg2 : undefined);
     if (shortLeg != undefined && longLeg != undefined) {
       if (shortLeg.contract.strike > longLeg.contract.strike) {
-        if (shortLeg.contract.expiration_date_integer_millis < longLeg.contract.expiration_date_integer_millis) {
+        if (shortLeg.contract.expiration_date_string == longLeg.contract.expiration_date_string) {
           return "Vertical Call Debit Spread";
         } else {
           return "Diagonal Call Debit Spread";
@@ -629,7 +674,7 @@ function twoLegStrategy(strategy: OptionStrategy) {
     const longLeg: StrategyLeg | undefined = (leg1.position_size > 0) ? leg1 : ((leg2.position_size > 0) ? leg2 : undefined);
     if (shortLeg != undefined && longLeg != undefined) {
       if (shortLeg.contract.strike < longLeg.contract.strike) {
-        if (shortLeg.contract.expiration_date_integer_millis < longLeg.contract.expiration_date_integer_millis) {
+        if (shortLeg.contract.expiration_date_string == longLeg.contract.expiration_date_string) {
           return "Vertical Put Debit Spread";
         } else {
           return "Diagonal Put Debit Spread";

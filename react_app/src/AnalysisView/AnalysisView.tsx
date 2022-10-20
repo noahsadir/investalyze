@@ -90,6 +90,7 @@ function MainContent(props: any) {
     symbolPrice = "$" + props.optionsChains[selectedSymbol].quote.spot_price.toFixed(2) + " (" + getFractionPercentage(props.optionsChains[selectedSymbol].quote.change, props.optionsChains[selectedSymbol].quote.spot_price) + ")";
   }
 
+  /*
   var selectedPane: any = null;
   switch (props.paneType) {
     case "summary":
@@ -107,6 +108,7 @@ function MainContent(props: any) {
     default:
       break;
   }
+  */
 
   const handleSymbolSelectChange = (event: SelectChangeEvent) => {
     setSelectedSymbol(event.target.value);
@@ -147,7 +149,10 @@ function MainContent(props: any) {
         </div>
       </div>
       <Divider light />
-      {selectedPane}
+      <SummaryPane isVisible={props.paneType == "summary"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
+      <DataPane isVisible={props.paneType == "data"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
+      <MetricsPane isVisible={props.paneType == "metrics"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
+      <TradingPane isVisible={props.paneType == "trading"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
     </Paper>
   ) : (
     <Paper style={{margin: 8, padding: 8, display: 'flex', flexGrow: 1, flexFlow: 'column'}} elevation={1}>

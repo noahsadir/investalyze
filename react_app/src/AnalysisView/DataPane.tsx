@@ -140,13 +140,13 @@ export function DataPane(props: any) {
   }
 
   return ((props.optionsChain != null) ? (
-    <div style={{display: 'flex', flexFlow: 'column', flexGrow: 1}}>
+    <div style={{display: (props.isVisible ? 'flex' : 'none'), flexFlow: 'column', flexGrow: 1}}>
       <DataPaneToolbar config={config} onConfigChange={handleConfigChange} optionsChain={props.optionsChain}/>
       <Divider sx={{marginTop: '8px', marginBottom: '8px'}} light/>
       <DataPaneMainContent config={config} optionsChain={props.optionsChain}/>
     </div>
   ) : (
-    <div>
+    <div style={{display: (props.isVisible ? 'flex' : 'none')}}>
     An error occurred with options chain data.
     </div>
   ));
