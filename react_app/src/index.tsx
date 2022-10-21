@@ -1,3 +1,9 @@
+/**
+ * index.tsx
+ *
+ * Main entry point of application
+ */
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -6,7 +12,7 @@ import reportWebVitals from './reportWebVitals';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material/';
-import { green, purple, grey, indigo } from '@mui/material/colors';
+import { indigo } from '@mui/material/colors';
 import "@fontsource/open-sans";
 
 const root = ReactDOM.createRoot(

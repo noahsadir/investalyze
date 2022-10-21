@@ -1,14 +1,17 @@
+/**
+ * TradingPane.tsx
+ *
+ * Allows user to build and test options strategies
+ */
+
 import React from 'react';
 import '../App.css';
-import { styled, alpha } from '@mui/material/styles';
-import InputBase from '@mui/material/InputBase';
-import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ToggleButton from '@mui/material/ToggleButton';
 import Paper from '@mui/material/Paper';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import FormControl from '@mui/material/FormControl';
@@ -18,28 +21,29 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import InputLabel from '@mui/material/InputLabel';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import TextField from '@mui/material/TextField';
 
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
 import { red, yellow } from '@mui/material/colors';
+
 import { StrategyView } from './StrategyView';
 
 import {
-  Contract, LookupTable, LookupTableEntry, OptionsChain, OptionStrategy, StrategyLeg
+  OptionStrategy, StrategyLeg, ContractFields
 } from '../interfaces';
 
 import {
   calculateInflectionPrices
 } from '../Pricing';
 
-const fetch = require('node-fetch');
+import {
+  formatValue, getContractFieldConfig
+} from '../Conversions';
 
 const toggleStyle = {
   flexGrow: 1
@@ -79,7 +83,7 @@ export function TradingPane(props: any) {
 
   const handleRemoveLeg = (id: string) => {
     for (var i = 0; i < strategy.legs.length; i++) {
-      if (strategy.legs[i].id == id) {
+      if (strategy.legs[i].id === id) {
         strategy.legs.splice(i, 1);
         break;
       }
@@ -90,7 +94,7 @@ export function TradingPane(props: any) {
 
   const handleLegPremiumChange = (id: string, premium: number) => {
     for (var i = 0; i < strategy.legs.length; i++) {
-      if (strategy.legs[i].id == id) {
+      if (strategy.legs[i].id === id) {
         strategy.legs[i].premium = premium;
         break;
       }
@@ -101,7 +105,7 @@ export function TradingPane(props: any) {
 
   const handleLegSizeChange = (id: string, size: number) => {
     for (var i = 0; i < strategy.legs.length; i++) {
-      if (strategy.legs[i].id == id) {
+      if (strategy.legs[i].id === id) {
         strategy.legs[i].position_size = size;
         break;
       }
@@ -138,11 +142,11 @@ export function TradingPane(props: any) {
         <ToggleButton style={toggleStyle} value="builder">Builder</ToggleButton>
       </ToggleButtonGroup>
       <div style={{display: "flex", flexGrow: 1, marginTop: '8px'}}>
-        <div style={{display: 'flex', flex: '2 0 0', overflow: 'auto'}} className={selectedView == "list" ? "" : "mobile-hidden"}>
+        <div style={{display: 'flex', flex: '2 0 0', overflow: 'auto'}} className={selectedView === "list" ? "" : "mobile-hidden"}>
           <ContractListView strategy={strategy} optionsChain={props.optionsChain} onAddLeg={handleAddLeg} onRemoveLeg={handleRemoveLeg}/>
         </div>
         <div style={{margin: '4px', height: 'auto'}} className="mobile-hidden"></div>
-        <div style={{display: 'flex', flex: '3 0 0'}} className={selectedView == "builder" ? "" : "mobile-hidden"}>
+        <div style={{display: 'flex', flex: '3 0 0'}} className={selectedView === "builder" ? "" : "mobile-hidden"}>
           <StrategySummaryView strategyName={strategyName} onStrategyViewClick={handleStrategyViewOpen} optionsChain={props.optionsChain} strategy={strategy} onLegRemove={handleRemoveLeg} onLegPremiumChange={handleLegPremiumChange} onLegSizeChange={handleLegSizeChange}/>
         </div>
       </div>
@@ -150,6 +154,9 @@ export function TradingPane(props: any) {
   );
 }
 
+/**
+ * Allows user to get basic info and edit legs of a particular strategy
+ */
 function StrategySummaryView(props: any) {
 
   var legListItems: any[] = [];
@@ -157,7 +164,7 @@ function StrategySummaryView(props: any) {
   for (var index in props.strategy.legs) {
     const leg: StrategyLeg = props.strategy.legs[index];
     legListItems.push(
-      <StrategyLegListItem leg={leg} onLegRemove={props.onLegRemove} onLegPremiumChange={props.onLegPremiumChange} onLegSizeChange={props.onLegSizeChange}/>
+      <StrategyLegListItem key={index} leg={leg} onLegRemove={props.onLegRemove} onLegPremiumChange={props.onLegPremiumChange} onLegSizeChange={props.onLegSizeChange}/>
     );
   }
 
@@ -172,6 +179,9 @@ function StrategySummaryView(props: any) {
   );
 }
 
+/**
+ * List item for list of selected legs
+ */
 function StrategyLegListItem(props: any) {
 
   var [premiumFieldValue, setPremiumFieldValue]: [string, any] = React.useState(props.leg.premium);
@@ -199,7 +209,7 @@ function StrategyLegListItem(props: any) {
           size="small"
           onChange={(event: any) => {
             setPositionDirection(event.target.value);
-            props.onLegSizeChange(props.leg.id, (event.target.value == "buy") ? 1 : -1);
+            props.onLegSizeChange(props.leg.id, (event.target.value === "buy") ? 1 : -1);
           }}
           exclusive>
           <ToggleButton style={toggleStyle} value="buy">Buy</ToggleButton>
@@ -218,6 +228,10 @@ function StrategyLegListItem(props: any) {
   );
 }
 
+/**
+ * Display important info related to strategy,
+ * including greeks, max gain/loss, net debit/credit, and pot odds
+ */
 function SummaryInfoView(props: any) {
 
   const greekNameStyle: any = {
@@ -258,7 +272,7 @@ function SummaryInfoView(props: any) {
   }
   maxLoss *= -1;
   // 120 : 130
-  if (maxLoss != Infinity && maxGain != Infinity) {
+  if (maxLoss !== Infinity && maxGain !== Infinity) {
     potOdds = ((maxLoss / (maxGain + maxLoss)) * 100).toFixed(2) + "%";
   }
 
@@ -269,7 +283,7 @@ function SummaryInfoView(props: any) {
   return (
     <div style={{display: 'flex', flexFlow: 'column', flexGrow: 0, margin: '8px', marginBottom: 0}}>
       <Typography sx={{textAlign: 'left', fontSize: '20px', fontWeight: 600, marginBottom: '8px'}}>{props.strategyName}</Typography>
-      <div style={{marginBottom: '8px', display: ((maxLoss == Infinity) ? 'flex' : 'none')}}>
+      <div style={{marginBottom: '8px', display: ((maxLoss === Infinity) ? 'flex' : 'none')}}>
         <WarningRoundedIcon style={{color: yellow[400], marginRight: '8px', width: '42px', height: '42px'}}/>
         <div style={{display: 'flex', flexFlow: 'column'}}>
           <Typography style={{color: yellow[400], fontWeight: 800, textAlign: 'left'}}>WARNING - UNDEFINED RISK TRADE</Typography>
@@ -279,11 +293,11 @@ function SummaryInfoView(props: any) {
       <div style={{display: 'flex', marginBottom: '8px'}}>
         <div style={{flexGrow: 1, flexBasis: 0}}>
           <Typography sx={greekNameStyle}>MAX GAIN</Typography>
-          <Typography sx={{textAlign: 'left'}}>{(maxGain == Infinity) ? "Infinity" : ("$" + maxGain.toFixed(2))}</Typography>
+          <Typography sx={{textAlign: 'left'}}>{(maxGain === Infinity) ? "Infinity" : ("$" + maxGain.toFixed(2))}</Typography>
         </div>
         <div style={{flexGrow: 1, flexBasis: 0}}>
           <Typography sx={greekNameStyle}>MAX LOSS</Typography>
-          <Typography sx={{textAlign: 'left', color: ((maxLoss == Infinity) ? red[400] : null)}}>{(maxLoss == Infinity) ? "Infinity" : ("$" + maxLoss.toFixed(2))}</Typography>
+          <Typography sx={{textAlign: 'left', color: ((maxLoss === Infinity) ? red[400] : null)}}>{(maxLoss === Infinity) ? "Infinity" : ("$" + maxLoss.toFixed(2))}</Typography>
         </div>
         <div style={{flexGrow: 1, flexBasis: 0}}>
           <Typography sx={greekNameStyle}>POT ODDS</Typography>
@@ -329,10 +343,12 @@ function SummaryInfoView(props: any) {
   );
 }
 
+/**
+ * Display list of contracts and allow for selection of legs
+ */
 function ContractListView(props: any) {
 
   const expirations: string[] = Object.keys(props.optionsChain.lookup.byExpiration);
-  const strikes: string[] = Object.keys(props.optionsChain.lookup.byStrike).sort((a: string, b: string) => {return Number(a) - Number(b);});
 
   var [firstCol, setFirstCol] = React.useState("volume");
   var [secondCol, setSecondCol] = React.useState("open_interest");
@@ -346,27 +362,26 @@ function ContractListView(props: any) {
   const contractListItems: any[] = [];
   var strategyContracts: any = {};
 
-  for (var index in props.strategy.legs) {
-    const leg: StrategyLeg = props.strategy.legs[index];
+  for (var leg of props.strategy.legs) {
     strategyContracts[leg.id] = leg.contract;
   }
 
   const handleColumnChange = (column: number, value: string) => {
-    if (column == 0) {
+    if (column === 0) {
       setFirstCol(value);
-    } else if (column == 1) {
+    } else if (column === 1) {
       setSecondCol(value);
-    } else if (column == 2) {
+    } else if (column === 2) {
       setThirdCol(value);
     }
   }
 
   const handleConfigChange = (config: string, value: string) => {
-    if (config == "option_type") {
+    if (config === "option_type") {
       setOptionType(value);
-    } else if (config == "dataset_type") {
+    } else if (config === "dataset_type") {
       setDatasetType(value);
-    } else if (config == "dataset_value") {
+    } else if (config === "dataset_value") {
       setDatasetValue(value);
     }
   }
@@ -384,9 +399,8 @@ function ContractListView(props: any) {
   const chain: any = props.optionsChain;
   if (chain.lookup[datasetType] != null && chain.lookup[datasetType][datasetValue] != null && chain.lookup[datasetType][datasetValue][optionType] != null) {
 
-    for (var index in chain.lookup[datasetType][datasetValue][optionType]) {
-      const key: string = chain.lookup[datasetType][datasetValue][optionType][index];
-      contractListItems.push(<ContractListItem onItemClick={handleContractListClick} sx={{minWidth: 0}} isSelected={strategyContracts[key] != null} id={key} contract={chain.contracts[key]} columns={{first: firstCol, second: secondCol, third: thirdCol}}/>);
+    for (var key of chain.lookup[datasetType][datasetValue][optionType]) {
+      contractListItems.push(<ContractListItem key={key} onItemClick={handleContractListClick} sx={{minWidth: 0}} isSelected={strategyContracts[key] != null} id={key} contract={chain.contracts[key]} columns={{first: firstCol, second: secondCol, third: thirdCol}}/>);
     }
   }
 
@@ -409,52 +423,25 @@ function ContractListView(props: any) {
   );
 }
 
+/**
+ * Allows for selection of different data fields of contract
+ */
 function ContractListToolbar(props: any) {
-
-  var filters: any = {
-    expiration_date_integer_millis: undefined,
-    strike: undefined,
-    option_type: undefined,
-    bid: undefined,
-    ask: undefined,
-    open: undefined,
-    close: undefined,
-    change: undefined,
-    last: undefined,
-    high: undefined,
-    low: undefined,
-    volume: undefined,
-    open_interest: undefined,
-    trade_date_integer_millis: undefined,
-    delta: undefined,
-    gamma: undefined,
-    theta: undefined,
-    rho: undefined,
-    vega: undefined,
-    implied_volatility: undefined,
-    smooth_implied_volatility: undefined,
-    intrinsic_value: undefined,
-    extrinsic_value: undefined,
-    leverage_ratio: undefined,
-    interest_equivalent: undefined,
-    mark: undefined
-  };
 
   var filterMenuItems: any[] = [];
 
   // get list of data points for contracts
-  for (var key in filters) {
-    filterMenuItems.push(<MenuItem value={key}>{getFilterConfig(key).name}</MenuItem>)
+  for (var index in ContractFields) {
+    filterMenuItems.push(<MenuItem key={index} value={ContractFields[index]}>{getContractFieldConfig(ContractFields[index]).name}</MenuItem>)
   }
 
-
   return (
-    <TableRow>
-      <TableCell sx={{maxWidth: '25%', padding: '8px', paddingLeft: '16px'}}>
+    <TableRow key={"headRow"}>
+      <TableCell key={"strike"} sx={{maxWidth: '25%', padding: '8px', paddingLeft: '16px'}}>
         <Typography sx={{fontSize: 18, fontWeight: 800}}>Strike</Typography>
         <Typography sx={{fontSize: 12}}>Expiration</Typography>
       </TableCell>
-      <TableCell sx={{maxWidth: '25%', padding: '8px'}}>
+      <TableCell key={"firstCol"} sx={{maxWidth: '25%', padding: '8px'}}>
         <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px'}}>
           <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
             <Select sx={{height: 48}} id="firstConfigSelect" value={props.columns.first}
@@ -464,7 +451,7 @@ function ContractListToolbar(props: any) {
           </FormControl>
         </div>
       </TableCell>
-      <TableCell sx={{maxWidth: '25%', padding: '8px'}}>
+      <TableCell key={"secondCol"} sx={{maxWidth: '25%', padding: '8px'}}>
         <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px'}}>
           <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
             <Select sx={{height: 48}} id="secondConfigSelect" value={props.columns.second}
@@ -474,7 +461,7 @@ function ContractListToolbar(props: any) {
           </FormControl>
         </div>
       </TableCell>
-      <TableCell sx={{maxWidth: '25%', padding: '8px'}}>
+      <TableCell key={"thirdCol"} sx={{maxWidth: '25%', padding: '8px'}}>
         <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px'}}>
           <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
             <Select sx={{height: 48}} id="thirdConfigSelect" value={props.columns.third}
@@ -488,43 +475,49 @@ function ContractListToolbar(props: any) {
   );
 }
 
+/**
+ * List item for list of contracts in options chain
+ */
 function ContractListItem(props: any) {
   const handleClick = (event: any) => {
     props.onItemClick(props.id);
   }
 
   return (props.contract != null) ? (
-    <TableRow hover onClick={handleClick} selected={props.isSelected}>
-      <TableCell>
-        <Typography sx={{fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap'}}>{"$" + props.contract.strike}</Typography>
+    <TableRow hover key={props.contract.strike} onClick={handleClick} selected={props.isSelected}>
+      <TableCell key={props.contract.strike}>
+        <Typography sx={{fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap'}}>{"$" + props.contract.strike + props.contract.option_type.charAt(0).toUpperCase()}</Typography>
         <Typography sx={{fontSize: 12, whiteSpace: 'nowrap'}}>{props.contract.expiration_date_string}</Typography>
       </TableCell>
-      <TableCell>
-        <Typography>{props.contract[props.columns.first]}</Typography>
+      <TableCell key={props.contract.strike.toString() + "1"}>
+        <Typography>{formatValue(props.contract[props.columns.first], getContractFieldConfig(props.columns.first).format)}</Typography>
       </TableCell>
-      <TableCell>
-        <Typography>{props.contract[props.columns.second]}</Typography>
+      <TableCell key={props.contract.strike.toString() + "2"}>
+        <Typography>{formatValue(props.contract[props.columns.second], getContractFieldConfig(props.columns.second).format)}</Typography>
       </TableCell>
-      <TableCell>
-        <Typography>{props.contract[props.columns.third]}</Typography>
+      <TableCell key={props.contract.strike.toString() + "3"}>
+        <Typography>{formatValue(props.contract[props.columns.third], getContractFieldConfig(props.columns.third).format)}</Typography>
       </TableCell>
     </TableRow>
   ) : (
-    <TableRow>
-      <TableCell>
+    <TableRow key={"errorRow"}>
+      <TableCell key={"errorCell"}>
         Error
       </TableCell>
     </TableRow>
   );
 }
 
+/**
+ * Filter contracts based on user-specified configuration
+ */
 function DatasetToolbar(props: any) {
 
   var datasetMenuItems: any[] = [];
 
   // get list of stikes or expirations depending on type selected
   for (var val in props.optionsChain.lookup[props.config.dataset_type]) {
-    datasetMenuItems.push(<MenuItem value={val}>{val}</MenuItem>);
+    datasetMenuItems.push(<MenuItem key={val} value={val}>{val}</MenuItem>);
   }
 
   return (
@@ -540,8 +533,8 @@ function DatasetToolbar(props: any) {
             <InputLabel>Option Type</InputLabel>
             <Select sx={{height: 32}} label="Option Type" id="optionTypeSelect" value={props.config.option_type}
                     onChange={(event: any) => {props.onConfigChange("option_type", event.target.value);}}>
-              <MenuItem value={"call"}>{"Calls"}</MenuItem>
-              <MenuItem value={"put"}>{"Puts"}</MenuItem>
+              <MenuItem key={"call"} value={"call"}>{"Calls"}</MenuItem>
+              <MenuItem key={"put"} value={"put"}>{"Puts"}</MenuItem>
             </Select>
           </FormControl>
         </div>
@@ -550,8 +543,8 @@ function DatasetToolbar(props: any) {
             <InputLabel>Dataset Type</InputLabel>
             <Select sx={{height: 32}} label="Dataset Type" id="datasetTypeSelect" value={props.config.dataset_type}
                     onChange={(event: any) => {props.onConfigChange("dataset_type", event.target.value);}}>
-              <MenuItem value={"byExpiration"}>{"Expirations"}</MenuItem>
-              <MenuItem value={"byStrike"}>{"Strikes"}</MenuItem>
+              <MenuItem key={"byExpiration"} value={"byExpiration"}>{"Expirations"}</MenuItem>
+              <MenuItem key={"byStrike"} value={"byStrike"}>{"Strikes"}</MenuItem>
             </Select>
           </FormControl>
         </div>
@@ -569,42 +562,48 @@ function DatasetToolbar(props: any) {
   );
 }
 
+/**
+ * Attempt to get a common name for the options strategy
+ */
 function getStrategyName(strategy: OptionStrategy) {
 
-  if (strategy.legs.length == 1) {
+  if (strategy.legs.length === 1) {
     return singleLegStrategy(strategy);
-  } else if (strategy.legs.length == 2) {
+  } else if (strategy.legs.length === 2) {
     return twoLegStrategy(strategy);
-  } else if (strategy.legs.length == 3) {
+  } else if (strategy.legs.length === 3) {
 
-  } else if (strategy.legs.length == 4) {
+  } else if (strategy.legs.length === 4) {
     return fourLegStrategy(strategy);
   }
 
   return "Unknown Strategy";
 }
 
+/**
+ * Determine name of single-leg strategy
+ */
 function singleLegStrategy(strategy: OptionStrategy) {
-  if (strategy.legs.length != 1) return "Error";
+  if (strategy.legs.length !== 1) return "Error";
   const leg1: StrategyLeg = strategy.legs[0];
-  if (leg1.contract.option_type == "call") {
+  if (leg1.contract.option_type === "call") {
     if (leg1.position_size > 0) {
-      if (strategy.share_count == 0) {
+      if (strategy.share_count === 0) {
         return "Long Call";
       } else if (strategy.share_count > 0) {
         return "Long Call + Long Shares";
       } else if (strategy.share_count < 0) {
-        if (strategy.share_count == leg1.position_size * 100) {
+        if (strategy.share_count === leg1.position_size * 100) {
           return "Protective Call";
         } else {
           return "Long Call + Short Shares";
         }
       }
     } else if (leg1.position_size < 0) {
-      if (strategy.share_count == 0) {
+      if (strategy.share_count === 0) {
         return "Short Call";
       } else if (strategy.share_count > 0) {
-        if (strategy.share_count == leg1.position_size * 100) {
+        if (strategy.share_count === leg1.position_size * 100) {
           return "Covered Call";
         } else {
           return "Short Call + Long Shares";
@@ -613,12 +612,12 @@ function singleLegStrategy(strategy: OptionStrategy) {
         return "Short Call + Short Shares";
       }
     }
-  } else if (leg1.contract.option_type == "put") {
+  } else if (leg1.contract.option_type === "put") {
     if (leg1.position_size > 0) {
-      if (strategy.share_count == 0) {
+      if (strategy.share_count === 0) {
         return "Long Put";
       } else if (strategy.share_count > 0) {
-        if (strategy.share_count == leg1.position_size * 100) {
+        if (strategy.share_count === leg1.position_size * 100) {
           return "Protective Put";
         } else {
           return "Long Put + Long Shares";
@@ -627,12 +626,12 @@ function singleLegStrategy(strategy: OptionStrategy) {
         return "Long Put + Short Shares";
       }
     } else if (leg1.position_size < 0) {
-      if (strategy.share_count == 0) {
+      if (strategy.share_count === 0) {
         return "Short Put";
       } else if (strategy.share_count > 0) {
         return "Short Put + Long Shares";
       } else if (strategy.share_count < 0) {
-        if (strategy.share_count == leg1.position_size * 100) {
+        if (strategy.share_count === leg1.position_size * 100) {
           return "Covered Put";
         } else {
           return "Long Put + Short Shares";
@@ -643,72 +642,75 @@ function singleLegStrategy(strategy: OptionStrategy) {
   return "Unknown Strategy";
 }
 
+/**
+ * Determine name of two-leg strategy
+ */
 function twoLegStrategy(strategy: OptionStrategy) {
-  if (strategy.legs.length != 2) return "Error";
+  if (strategy.legs.length !== 2) return "Error";
   const leg1: StrategyLeg = strategy.legs[0];
   const leg2: StrategyLeg = strategy.legs[1];
 
-  if (leg1.contract.option_type == "call" && leg2.contract.option_type == "call") { // call spread
+  if (leg1.contract.option_type === "call" && leg2.contract.option_type === "call") { // call spread
     const shortLeg: StrategyLeg | undefined = (leg1.position_size < 0) ? leg1 : ((leg2.position_size < 0) ? leg2 : undefined);
     const longLeg: StrategyLeg | undefined = (leg1.position_size > 0) ? leg1 : ((leg2.position_size > 0) ? leg2 : undefined);
-    if (shortLeg != undefined && longLeg != undefined) {
+    if (shortLeg !== undefined && longLeg !== undefined) {
       if (shortLeg.contract.strike > longLeg.contract.strike) {
-        if (shortLeg.contract.expiration_date_string == longLeg.contract.expiration_date_string) {
+        if (shortLeg.contract.expiration_date_string === longLeg.contract.expiration_date_string) {
           return "Vertical Call Debit Spread";
         } else {
           return "Diagonal Call Debit Spread";
         }
       } else if (shortLeg.contract.strike < longLeg.contract.strike) {
-        if (shortLeg.contract.expiration_date_string == longLeg.contract.expiration_date_string) {
+        if (shortLeg.contract.expiration_date_string === longLeg.contract.expiration_date_string) {
           return "Vertical Call Credit Spread";
         } else {
           return "Diagonal Call Credit Spread";
         }
-      } else if (shortLeg.contract.strike == longLeg.contract.strike) {
+      } else if (shortLeg.contract.strike === longLeg.contract.strike) {
         if (shortLeg.contract.expiration_date_integer_millis > longLeg.contract.expiration_date_integer_millis) {
           return "Calendar Call Credit Spread";
         } else if (shortLeg.contract.expiration_date_integer_millis < longLeg.contract.expiration_date_integer_millis) {
           return "Calendar Call Debit Spread";
         }
       }
-    } else if (shortLeg != undefined) {
+    } else if (shortLeg !== undefined) {
       return "Short Calls";
-    } else if (longLeg != undefined) {
+    } else if (longLeg !== undefined) {
       return "Long Calls";
     }
-  } else if (leg1.contract.option_type == "put" && leg2.contract.option_type == "put") { // put spread
+  } else if (leg1.contract.option_type === "put" && leg2.contract.option_type === "put") { // put spread
     const shortLeg: StrategyLeg | undefined = (leg1.position_size < 0) ? leg1 : ((leg2.position_size < 0) ? leg2 : undefined);
     const longLeg: StrategyLeg | undefined = (leg1.position_size > 0) ? leg1 : ((leg2.position_size > 0) ? leg2 : undefined);
-    if (shortLeg != undefined && longLeg != undefined) {
+    if (shortLeg !== undefined && longLeg !== undefined) {
       if (shortLeg.contract.strike < longLeg.contract.strike) {
-        if (shortLeg.contract.expiration_date_string == longLeg.contract.expiration_date_string) {
+        if (shortLeg.contract.expiration_date_string === longLeg.contract.expiration_date_string) {
           return "Vertical Put Debit Spread";
         } else {
           return "Diagonal Put Debit Spread";
         }
       } else if (shortLeg.contract.strike > longLeg.contract.strike) {
-        if (shortLeg.contract.expiration_date_string == longLeg.contract.expiration_date_string) {
+        if (shortLeg.contract.expiration_date_string === longLeg.contract.expiration_date_string) {
           return "Vertical Put Credit Spread";
         } else {
           return "Diagonal Put Credit Spread";
         }
-      } else if (shortLeg.contract.strike == longLeg.contract.strike) {
+      } else if (shortLeg.contract.strike === longLeg.contract.strike) {
         if (shortLeg.contract.expiration_date_integer_millis > longLeg.contract.expiration_date_integer_millis) {
           return "Calendar Put Credit Spread";
         } else if (shortLeg.contract.expiration_date_integer_millis < longLeg.contract.expiration_date_integer_millis) {
           return "Calendar Put Debit Spread";
         }
       }
-    } else if (shortLeg != undefined) {
+    } else if (shortLeg !== undefined) {
     return "Short Puts";
-    } else if (longLeg != undefined) {
+    } else if (longLeg !== undefined) {
     return "Long Puts";
     }
-  } else if (leg1.contract.option_type != leg2.contract.option_type) { // straddle/strangle
-    const callLeg: StrategyLeg | undefined = (leg1.contract.option_type == "call") ? leg1 : leg2;
-    const putLeg: StrategyLeg | undefined = (leg1.contract.option_type == "put") ? leg1 : leg2;
+  } else if (leg1.contract.option_type !== leg2.contract.option_type) { // straddle/strangle
+    const callLeg: StrategyLeg | undefined = (leg1.contract.option_type === "call") ? leg1 : leg2;
+    const putLeg: StrategyLeg | undefined = (leg1.contract.option_type === "put") ? leg1 : leg2;
 
-    if (callLeg.contract.strike == putLeg.contract.strike) {
+    if (callLeg.contract.strike === putLeg.contract.strike) {
       if (callLeg.position_size > 0 && putLeg.position_size > 0) {
         return "Long Straddle";
       } else if (callLeg.position_size < 0 && putLeg.position_size < 0) {
@@ -725,8 +727,11 @@ function twoLegStrategy(strategy: OptionStrategy) {
   return "Unknown Strategy";
 }
 
+/**
+ * Determine name of four-leg strategy
+ */
 function fourLegStrategy(strategy: OptionStrategy) {
-  if (strategy.legs.length != 4) return "Error";
+  if (strategy.legs.length !== 4) return "Error";
 
   var longCalls: StrategyLeg[] = [];
   var longPuts: StrategyLeg[] = [];
@@ -735,13 +740,13 @@ function fourLegStrategy(strategy: OptionStrategy) {
 
   for (var index in strategy.legs) {
     const leg: StrategyLeg = strategy.legs[index];
-    if (leg.contract.option_type == "call") {
+    if (leg.contract.option_type === "call") {
       if (leg.position_size > 0) {
         longCalls.push(leg);
       } else if (leg.position_size < 0) {
         shortCalls.push(leg);
       }
-    } else if (leg.contract.option_type == "put") {
+    } else if (leg.contract.option_type === "put") {
       if (leg.position_size > 0) {
         longPuts.push(leg);
       } else if (leg.position_size < 0) {
@@ -750,134 +755,13 @@ function fourLegStrategy(strategy: OptionStrategy) {
     }
   }
 
-  if (longCalls.length == 2 && shortCalls.length == 2) {
+  if (longCalls.length === 2 && shortCalls.length === 2) {
     return "Call Condor";
-  } else if (longPuts.length == 2 && shortPuts.length == 2) {
+  } else if (longPuts.length === 2 && shortPuts.length === 2) {
     return "Put Condor";
-  } else if (longCalls.length == 1 && shortCalls.length == 1 && longPuts.length == 1 && shortPuts.length == 1) {
+  } else if (longCalls.length === 1 && shortCalls.length === 1 && longPuts.length === 1 && shortPuts.length === 1) {
     return "Iron Condor";
   }
 
   return "Unknown Strategy";
-}
-
-/**
- * Get the name and format for any given type of filter
- */
-function getFilterConfig(filterID: string) {
-  const filterNames: any = {
-    expiration_date_integer_millis: {
-      name: "Expiration",
-      format: "date_millis"
-    },
-    strike: {
-      name: "Strike Price",
-      format: "strike"
-    },
-    option_type: {
-      name: "Option Type",
-      format: "option_type"
-    },
-    bid: {
-      name: "Bid Price",
-      format: "price"
-    },
-    ask: {
-      name: "Ask Price",
-      format: "price"
-    },
-    open: {
-      name: "Open Price",
-      format: "price"
-    },
-    close: {
-      name: "Close Price",
-      format: "price"
-    },
-    change: {
-      name: "Day Change",
-      format: "price"
-    },
-    last: {
-      name: "Last Price",
-      format: "price"
-    },
-    high: {
-      name: "High Price",
-      format: "price"
-    },
-    low: {
-      name: "Low Price",
-      format: "price"
-    },
-    volume: {
-      name: "Volume",
-      format: "integer"
-    },
-    open_interest: {
-      name: "Open Interest",
-      format: "integer"
-    },
-    trade_date_integer_millis: {
-      name: "Trade Date",
-      format: "date_millis"
-    },
-    delta: {
-      name: "Delta",
-      format: "greeks"
-    },
-    gamma: {
-      name: "Gamma",
-      format: "greeks"
-    },
-    theta: {
-      name: "Theta",
-      format: "greeks"
-    },
-    rho: {
-      name: "Rho",
-      format: "greeks"
-    },
-    vega: {
-      name: "Vega",
-      format: "greeks"
-    },
-    implied_volatility: {
-      name: "Implied Volatility",
-      format: "percentage"
-    },
-    smooth_implied_volatility: {
-      name: "Smooth IV",
-      format: "percentage"
-    },
-    intrinsic_value: {
-      name: "Intrinsic Value",
-      format: "price"
-    },
-    extrinsic_value: {
-      name: "Extrinsic Value",
-      format: "price"
-    },
-    leverage_ratio: {
-      name: "Leverage Ratio",
-      format: "price"
-    },
-    interest_equivalent: {
-      name: "Interest Equivalent",
-      format: "percentage"
-    },
-    mark: {
-      name: "Mark",
-      format: "price"
-    }
-  }
-
-  if (filterNames[filterID] != null) {
-    return filterNames[filterID];
-  }
-
-  return {
-    name: undefined,
-    format: undefined
-  };
 }

@@ -10,9 +10,6 @@
  *
  */
 
-
-
-
 import React from 'react';
 import './App.css';
 import { styled, alpha } from '@mui/material/styles';
@@ -20,12 +17,6 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import ToggleButton from '@mui/material/ToggleButton';
-import Paper from '@mui/material/Paper';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Backdrop from '@mui/material/Backdrop';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -34,13 +25,13 @@ import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
 
 import {
-  Contract, LookupTable, LookupTableEntry, OptionsChain
+  OptionsChain
 } from './interfaces';
+
 import { AnalysisView } from './AnalysisView/AnalysisView';
 const fetch = require('node-fetch');
 
@@ -115,7 +106,7 @@ function SearchBar(props: any) {
  */
 function loadSymbol(symbol: string, apiKey: string, callback: (success: boolean, data: any) => void) {
   console.log(apiKey);
-  if (symbol == "@TEST") {
+  if (symbol === "@TEST") {
     callback(true, require('./test_data.json'));
   } else {
     var url: string = "https://" + window.location.host + "/api/options_chain";
@@ -135,12 +126,12 @@ function loadSymbol(symbol: string, apiKey: string, callback: (success: boolean,
     fetch(url, config)
     .then((response: any) => {
       status = response.status;
-      if (status == 200) {
+      if (status === 200) {
         return response.json();
       }
     })
     .then((data: any) => {
-      if (status == 200) {
+      if (status === 200) {
         if (data != null) {
           callback(true, data);
         } else {
@@ -190,6 +181,7 @@ function App() {
     loadSymbol(symbol, apiKey, (success, data) => {
       if (success) {
         optionsChains[symbol] = data;
+        setOptionsChains(optionsChains);
       } else {
         console.log("error");
       }

@@ -1,35 +1,36 @@
+/**
+ * MetricsPane.tsx
+ *
+ * Allows user to view different calculations made using options data
+ */
+
 import React from 'react';
 import '../App.css';
-import { styled, alpha } from '@mui/material/styles';
-import InputBase from '@mui/material/InputBase';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import ToggleButton from '@mui/material/ToggleButton';
 import Paper from '@mui/material/Paper';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 
 import {
-  Contract, LookupTable, LookupTableEntry, OptionsChain
+  Contract, OptionsChain
 } from '../interfaces';
 
 import {
   MultiChartData, MultiChart
 } from './MultiChart';
 
-const fetch = require('node-fetch');
+import {
+  getContractFieldConfig, getPercentage, getPercentChange, getBigNumber
+} from '../Conversions';
 
 interface MetricsPoint {
   implied_move: number;
@@ -46,7 +47,7 @@ interface TableData {
 }
 
 /**
- * Trading pane for Summary View
+ * Metrics pane for Analysis View
  */
 export function MetricsPane(props: any) {
 
@@ -100,7 +101,7 @@ function MetricsPaneContent(props: any) {
             chartType={props.chartType}
             usesDate={true}
             xAxisLabel={"Date"}
-            yAxisLabel={getMetricsDataConfig(props.metricType).name}/>
+            yAxisLabel={getContractFieldConfig(props.metricType).name}/>
         </Paper>
       </div>
 
@@ -108,6 +109,9 @@ function MetricsPaneContent(props: any) {
   );
 }
 
+/**
+ * Allows user to view their desired metric and visualization
+ */
 function MetricsPaneToolbar(props: any) {
 
   var [chartType, setChartType]: [string, any] = React.useState(props.chartType);
@@ -120,9 +124,9 @@ function MetricsPaneToolbar(props: any) {
       metric_type: metricType
     };
 
-    if (config == "chart_type") {
+    if (config === "chart_type") {
       setChartType(value);
-    } else if (config == "metric_type") {
+    } else if (config === "metric_type") {
       setMetricType(value);
     }
 
@@ -169,29 +173,32 @@ function MetricsPaneToolbar(props: any) {
   );
 }
 
+/**
+ * Build a table from the specified data
+ */
 function buildTable(tableData: any) {
 
   // Create table header
   var bodyRows: any[] = [];
   var headColumnCells: any[] = [];
-  for (var index in tableData.header) {
-    headColumnCells.push(<TableCell>{tableData.header[index]}</TableCell>);
+  for (var headerInd in tableData.header) {
+    headColumnCells.push(<TableCell key={headerInd}>{tableData.header[headerInd]}</TableCell>);
   }
 
   // Create table body
-  for (var index in tableData.body) {
+  for (var bodyInd in tableData.body) {
     var bodyRowCells: any[] = [];
-    for (var cellInd in tableData.body[index]) {
-      bodyRowCells.push(<TableCell>{tableData.body[index][cellInd]}</TableCell>);
+    for (var cellInd in tableData.body[bodyInd]) {
+      bodyRowCells.push(<TableCell key={cellInd}>{tableData.body[bodyInd][cellInd]}</TableCell>);
     }
-    bodyRows.push(<TableRow>{bodyRowCells}</TableRow>);
+    bodyRows.push(<TableRow key={bodyInd}>{bodyRowCells}</TableRow>);
   }
 
   return (
     <TableContainer sx={{flex: '1 0 0', 'minHeight': 0}}>
       <Table stickyHeader aria-label="sticky table">
         <TableHead>
-          <TableRow>
+          <TableRow key={"head"}>
             {headColumnCells}
           </TableRow>
         </TableHead>
@@ -203,75 +210,51 @@ function buildTable(tableData: any) {
   );
 }
 
-function getPercentChange(from: number, to: number) {
-  if (to == 0) return "ERR";
-  if (from == 1) return "+0%";
-  const ratio: number = to / from;
-  if (ratio > 1) {
-    return "+" + ((ratio - 1) * 100).toFixed(2) + "%";
-  }
-  return "-" + ((1 - ratio) * 100).toFixed(2) + "%";
-}
-
-function getPercentage(ratio: number) {
-  return (ratio * 100).toFixed(2) + "%";
-}
-
-function getBigNumber(val: number) {
-  if (val >= 1000000000000) {
-    return (val / 1000000000000).toFixed(2) + "T";
-  } else if (val >= 1000000000) {
-    return (val / 1000000000).toFixed(2) + "B";
-  } else if (val >= 1000000) {
-    return (val / 1000000).toFixed(2) + "M";
-  } else if (val >= 1000) {
-    return (val / 1000).toFixed(2) + "K";
-  } else {
-    return Math.round(val).toString();
-  }
-}
-
+/**
+ * Convert metrics data into format accepted by MultiChart
+ */
 function formatChartData(aggregateData: any, metricType: any, spotPrice: number) {
   var data: MultiChartData = {};
+  var date: string;
 
-  if (metricType == "total_open_interest") {
+  if (metricType === "total_open_interest") {
     data.Calls = [];
     data.Puts = [];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       data.Calls.push([date, aggregateData[date].call.total_open_interest]);
       data.Puts.push([date, aggregateData[date].put.total_open_interest]);
     }
-  } else if (metricType == "total_volume") {
+  } else if (metricType === "total_volume") {
     data.Calls = [];
     data.Puts = [];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       data.Calls.push([date, aggregateData[date].call.total_volume]);
       data.Puts.push([date, aggregateData[date].put.total_volume]);
     }
-  } else if (metricType == "open_interest_value") {
+  } else if (metricType === "open_interest_value") {
     data.Calls = [];
     data.Puts = [];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       data.Calls.push([date, aggregateData[date].call.open_interest_value]);
       data.Puts.push([date, aggregateData[date].put.open_interest_value]);
     }
-  } else if (metricType == "implied_move") {
+  } else if (metricType === "implied_move") {
     data.High = [];
     data.Low = [];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       data.High.push([date, Math.round((spotPrice + aggregateData[date].call.implied_move) * 100) / 100]);
       data.Low.push([date, Math.round((spotPrice - aggregateData[date].call.implied_move) * 100) / 100]);
     }
-  } else if (metricType == "ntm_implied_volatility") {
+  } else if (metricType === "ntm_implied_volatility") {
     data.Calls = [];
     data.Puts = [];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       data.Calls.push([date, aggregateData[date].call.ntm_implied_volatility]);
       data.Puts.push([date, aggregateData[date].put.ntm_implied_volatility]);
     }
-  } else if (metricType == "maximum_pain") {
+  } else if (metricType === "maximum_pain") {
     data["Max Pain"] = [];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       data["Max Pain"].push([date, aggregateData[date].call.maximum_pain]);
     }
   }
@@ -279,48 +262,52 @@ function formatChartData(aggregateData: any, metricType: any, spotPrice: number)
   return data;
 }
 
+/**
+ * Convert metrics data into format accepted by buildTable()
+ */
 function formatTableData(aggregateData: any, metricType: any, spotPrice: number) {
   var header: string[] = [];
   var body: string[][] = [];
+  var date: string;
 
-  if (metricType == "total_open_interest") {
+  if (metricType === "total_open_interest") {
     header = ["Date", "Calls", "Puts", "Total", "P/C Ratio"];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       const callOI: number = aggregateData[date].call.total_open_interest;
       const putOI: number = aggregateData[date].put.total_open_interest;
       body.push([date, callOI.toString(), putOI.toString(), (callOI + putOI).toString(), (putOI / callOI).toFixed(2)]);
     }
-  } else if (metricType == "open_interest_value") {
+  } else if (metricType === "open_interest_value") {
     header = ["Date", "Calls", "Puts", "Total", "P/C Ratio"];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       const callOI: number = aggregateData[date].call.open_interest_value;
       const putOI: number = aggregateData[date].put.open_interest_value;
       body.push([date, "$" + getBigNumber(callOI), "$" + getBigNumber(putOI), "$" + getBigNumber(callOI + putOI), (putOI / callOI).toFixed(2)]);
     }
-  } else if (metricType == "total_volume") {
+  } else if (metricType === "total_volume") {
     header = ["Date", "Calls", "Puts", "Total", "P/C Ratio"];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       const callVolume: number = aggregateData[date].call.total_volume;
       const putVolume: number = aggregateData[date].put.total_volume;
       body.push([date, callVolume.toString(), putVolume.toString(), (callVolume + putVolume).toString(), (putVolume / callVolume).toFixed(2)]);
     }
-  } else if (metricType == "ntm_implied_volatility") {
+  } else if (metricType === "ntm_implied_volatility") {
     header = ["Date", "Call IV", "Put IV", "Avg IV"];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       const callIV: number = aggregateData[date].call.ntm_implied_volatility;
       const putIV: number = aggregateData[date].put.ntm_implied_volatility;
       body.push([date, getPercentage(callIV), getPercentage(putIV), getPercentage((callIV + putIV) / 2)]);
     }
-  } else if (metricType == "implied_move") {
+  } else if (metricType === "implied_move") {
     header = ["Date", "Low", "High", "Move ($)", "Move (%)"];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       const impliedMove: number = aggregateData[date].call.implied_move;
 
       body.push([date, "$" + (spotPrice - impliedMove).toFixed(2), "$" + (spotPrice + impliedMove).toFixed(2), "+/- $" + impliedMove.toFixed(2), "+/- " + getPercentage(impliedMove / spotPrice)]);
     }
-  } else if (metricType == "maximum_pain") {
+  } else if (metricType === "maximum_pain") {
     header = ["Date", "Max Pain", "Suggested Move"];
-    for (var date in aggregateData) {
+    for (date in aggregateData) {
       const maxPain: number = aggregateData[date].call.maximum_pain;
       body.push([date, "$" + maxPain.toFixed(2), getPercentChange(spotPrice, maxPain)]);
     }
@@ -332,6 +319,9 @@ function formatTableData(aggregateData: any, metricType: any, spotPrice: number)
   };
 }
 
+/**
+ * Calculate metrics for a stock using its options data
+ */
 function calculateAggregateData(optionsChain: OptionsChain) {
   var result: any = {};
   for (var date in optionsChain.lookup.byExpiration) {
@@ -360,8 +350,8 @@ function calculateAggregateData(optionsChain: OptionsChain) {
       maximum_pain: 0
     };
 
-    for (var i = 0; i < callIDs.length; i++) {
-      const contract: Contract = optionsChain.contracts[callIDs[i]];
+    for (var callInd = 0; callInd < callIDs.length; callInd++) {
+      const contract: Contract = optionsChain.contracts[callIDs[callInd]];
       if (contract != null) {
         callData.total_open_interest += contract.open_interest;
         callData.total_volume += contract.volume;
@@ -380,8 +370,8 @@ function calculateAggregateData(optionsChain: OptionsChain) {
     smallestSpotStrikeSpread = undefined;
     currentSum = 0;
 
-    for (var i = putIDs.length - 1; i >= 0; i--) {
-      const contract: Contract = optionsChain.contracts[putIDs[i]];
+    for (var putInd = putIDs.length - 1; putInd >= 0; putInd--) {
+      const contract: Contract = optionsChain.contracts[putIDs[putInd]];
       if (contract != null) {
         putData.total_open_interest += contract.open_interest;
         putData.total_volume += contract.volume;
@@ -420,42 +410,4 @@ function calculateAggregateData(optionsChain: OptionsChain) {
   }
 
   return result;
-}
-
-function getMetricsDataConfig(id: string) {
-  const config: any = {
-    implied_move: {
-      name: "Implied Move",
-      format: "price"
-    },
-    ntm_implied_volatility: {
-      name: "Implied Volatility",
-      format: "percentage"
-    },
-    total_volume: {
-      name: "Total Volume",
-      format: "integer"
-    },
-    total_open_interest: {
-      name: "Total Open Interest",
-      format: "integer"
-    },
-    open_interest_value: {
-      name: "Open Interest Value",
-      format: "big_integer"
-    },
-    maximum_pain: {
-      name: "Maximum Pain",
-      format: "price"
-    }
-  };
-
-  if (config[id] != null) {
-    return config[id];
-  }
-
-  return {
-    name: undefined,
-    format: undefined
-  };
 }

@@ -1,25 +1,25 @@
+/**
+ * AnalysisView.tsx
+ *
+ * Handles analysis of market data
+ */
+
 import React from 'react';
 import '../App.css';
-import { styled, alpha } from '@mui/material/styles';
-import InputBase from '@mui/material/InputBase';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ToggleButton from '@mui/material/ToggleButton';
 import Paper from '@mui/material/Paper';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 
-import { Contract, LookupTable, LookupTableEntry, OptionsChain } from '../interfaces';
 import { SummaryPane } from './SummaryPane';
 import { MetricsPane } from './MetricsPane';
 import { DataPane } from './DataPane';
 import { TradingPane } from './TradingPane';
-const fetch = require('node-fetch');
 
 /**
  * Manages analysis section of the app.
@@ -62,7 +62,7 @@ export function AnalysisView(props: any) {
 }
 
 function getFractionPercentage(numerator: number, denominator: number) {
-  if (denominator == 0) {
+  if (denominator === 0) {
     return "-- %";
   }
   const ratio: number = numerator / denominator;
@@ -76,7 +76,6 @@ function MainContent(props: any) {
 
 
   const [selectedSymbol, setSelectedSymbol] = React.useState("");
-  const [symbolList, setSymbolList] = React.useState([]);
 
   var symbolName: string = "--";
   var symbolPrice: string = "$ --";
@@ -90,36 +89,15 @@ function MainContent(props: any) {
     symbolPrice = "$" + props.optionsChains[selectedSymbol].quote.spot_price.toFixed(2) + " (" + getFractionPercentage(props.optionsChains[selectedSymbol].quote.change, props.optionsChains[selectedSymbol].quote.spot_price) + ")";
   }
 
-  /*
-  var selectedPane: any = null;
-  switch (props.paneType) {
-    case "summary":
-      selectedPane = (<SummaryPane selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>);
-      break;
-    case "data":
-      selectedPane = (<DataPane selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>);
-      break;
-    case "metrics":
-      selectedPane = (<MetricsPane selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>);
-      break;
-    case "trading":
-      selectedPane = (<TradingPane selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>);
-      break;
-    default:
-      break;
-  }
-  */
-
   const handleSymbolSelectChange = (event: SelectChangeEvent) => {
     setSelectedSymbol(event.target.value);
   };
 
   var symbolSelectItems: any[] = [];
   for (var symbol in props.optionsChains) {
-    symbolSelectItems.push(<MenuItem value={symbol}>{symbol}</MenuItem>);
+    symbolSelectItems.push(<MenuItem key={symbol} value={symbol}>{symbol}</MenuItem>);
   }
 
-  //<MenuItem value={"MSFT"}>MSFT</MenuItem>
   return (props.optionsChains[selectedSymbol] != null) ? (
     <Paper style={{margin: 8, padding: 8, display: 'flex', flexGrow: 1, flexFlow: 'column', maxWidth: 'calc(calc(100vw) - 16px)'}} elevation={1}>
       <div style={{flexGrow: 0, display: 'flex', paddingBottom: '8px'}}>
@@ -149,10 +127,10 @@ function MainContent(props: any) {
         </div>
       </div>
       <Divider light />
-      <SummaryPane isVisible={props.paneType == "summary"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
-      <DataPane isVisible={props.paneType == "data"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
-      <MetricsPane isVisible={props.paneType == "metrics"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
-      <TradingPane isVisible={props.paneType == "trading"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
+      <SummaryPane isVisible={props.paneType === "summary"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
+      <DataPane isVisible={props.paneType === "data"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
+      <MetricsPane isVisible={props.paneType === "metrics"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
+      <TradingPane isVisible={props.paneType === "trading"} selectedSymbol={selectedSymbol} optionsChain={props.optionsChains[selectedSymbol]}/>
     </Paper>
   ) : (
     <Paper style={{margin: 8, padding: 8, display: 'flex', flexGrow: 1, flexFlow: 'column'}} elevation={1}>

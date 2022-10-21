@@ -1,3 +1,9 @@
+/**
+ * app.ts
+ *
+ * Router and backend for Investalyze
+ */
+
 import express from 'express';
 import * as bodyParser from "body-parser";
 

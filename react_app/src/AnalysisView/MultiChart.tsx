@@ -7,13 +7,12 @@
  * ------
  * - Light mode
  * - Surface plots
- * - Proper display of dates
  */
 
 import React from 'react';
 import '../App.css';
 import { Chart as ChartJS, registerables } from 'chart.js';
-import { Line, Bar, Scatter } from 'react-chartjs-2';
+import { Bar, Scatter } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns';
 
 ChartJS.register(...registerables);
@@ -76,7 +75,7 @@ export function MultiChart(props: any) {
         }
       },
       x: {
-        type: (props.chartType == "line") ? (props.usesDate ? 'time' : 'linear') : 'category',
+        type: (props.chartType === "line") ? (props.usesDate ? 'time' : 'linear') : 'category',
         time: (props.usesDate) ? {
           unit: 'month'
         } : null,
@@ -93,7 +92,7 @@ export function MultiChart(props: any) {
   // Generate chart series based on the generated data point
   var datasets: any[] = [];
   for (var key in chartData) {
-    if (key != "labels") {
+    if (key !== "labels") {
       datasets.push({
         label: key,
         pointRadius: 2,
@@ -107,7 +106,7 @@ export function MultiChart(props: any) {
   }
 
   // Determine what type of chart object to use depending on type specified
-  const chart: any = (props.chartType == "bar") ? (
+  const chart: any = (props.chartType === "bar") ? (
     <Bar
       style={{flexGrow: 0, flexBasis: 0, width: '100%', height: '100%'}}
       datasetIdKey='id'
@@ -163,9 +162,9 @@ function formatChartData(filteredData: MultiChartData, chartType: string) {
 
     // For each series (calls, puts), generate a set of points to be plotted
     for (var pointInd in filteredData[series]) {
-      if (chartType == "line") {
+      if (chartType === "line") {
         newSeriesPoints.push({x: filteredData[series][pointInd][0], y: filteredData[series][pointInd][1]});
-      } else if (chartType == "bar") {
+      } else if (chartType === "bar") {
         if (!didAddLabels) {
           if (newData.labels == null) {
             newData.labels = [];

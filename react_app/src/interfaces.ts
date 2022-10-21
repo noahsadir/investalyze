@@ -1,3 +1,39 @@
+/**
+ * interfaces.ts
+ *
+ * Data structures used by app
+ */
+
+export const ContractFields: string[] = [
+  "expiration_date_string",
+  "expiration_date_integer_millis",
+  "strike",
+  "option_type",
+  "bid",
+  "ask",
+  "open",
+  "close",
+  "change",
+  "last",
+  "high",
+  "low",
+  "volume",
+  "open_interest",
+  "trade_date_integer_millis",
+  "delta",
+  "gamma",
+  "theta",
+  "rho",
+  "vega",
+  "implied_volatility",
+  "smooth_implied_volatility",
+  "intrinsic_value",
+  "extrinsic_value",
+  "leverage_ratio",
+  "interest_equivalent",
+  "mark"
+];
+
 export interface Contract {
   expiration_date_string: string;
   expiration_date_integer_millis: number;

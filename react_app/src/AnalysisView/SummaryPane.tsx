@@ -1,5 +1,12 @@
+/**
+ * SummaryView.tsx
+ *
+ * Displays a summary of the specified product
+ */
+
 import React from 'react';
 import '../App.css';
+/*
 import { styled, alpha } from '@mui/material/styles';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
@@ -14,6 +21,7 @@ import {
   Contract, LookupTable, LookupTableEntry, OptionsChain
 } from '../interfaces';
 const fetch = require('node-fetch');
+*/
 
 /**
  * Trading pane for Summary View
