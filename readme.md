@@ -1,21 +1,21 @@
 # Investalyze
 
-A human-friendly interface for stock market and options data.
+A human-friendly interface for visualizing stock market and options data.
 
 ## Features
 
 ### Visualize Raw Data
 - View raw data from options chain, such as the volume or open interest of
 different contracts.
-- Visualize data in various ways, such as a line or bar chart
+- Visualize data in various ways, such as a line or bar chart.
 
 ### View Metrics
-- Investalyze calculates various metrics using data from the options chain
+- Investalyze calculates various metrics using data from the options chain.
 - View implied move, max pain, and overall options volume of a particular equity.
 
 ### Trading Strategies
 - Form different options strategies, such as spreads, condors, and covered calls.
-- See historical performance of a strategy along with its forecasted prices.
+- See historical performance of a strategy along with its forecasted value.
 
 ## API
 
@@ -76,6 +76,24 @@ Get options chain and related data for a particular equity.
     },
     ...
   },
+  historical: {
+    [
+      day: string,
+      open: number,
+      close: number,
+      high: number,
+      low: number,
+      volume: number
+    ],
+    ...
+  },
+  quote: {
+    symbol: (string),
+    name: (string),
+    spot_price: (number),
+    change: (number)
+  },
+  spot_price: (number)
   fetch_date: (number)
 }
 ```
@@ -83,11 +101,12 @@ Get options chain and related data for a particular equity.
 ### historical
 
 Get historical data for symbol over a specified time period.
+Also applies to options contracts (e.g. MSFT230120C00220000)
 
 #### Accepts
 ```
 {
-  "symbol": string,
+  "symbols": string,
   "api_key": string
   "duration": string
 }
