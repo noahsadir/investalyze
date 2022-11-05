@@ -76,17 +76,17 @@ Get options chain and related data for a particular equity.
     },
     ...
   },
-  historical: {
-    [
+  historical: [
+    {
       day: string,
       open: number,
       close: number,
       high: number,
       low: number,
       volume: number
-    ],
+    },
     ...
-  },
+  ],
   quote: {
     symbol: (string),
     name: (string),
@@ -101,12 +101,13 @@ Get options chain and related data for a particular equity.
 ### historical
 
 Get historical data for symbol over a specified time period.
+
 Also applies to options contracts (e.g. MSFT230120C00220000)
 
 #### Accepts
 ```
 {
-  "symbols": string,
+  "symbols": string[],
   "api_key": string
   "duration": string
 }
@@ -115,17 +116,17 @@ Also applies to options contracts (e.g. MSFT230120C00220000)
 #### Returns
 ```
 {
-  (string): {
-    [
+  (string): [
+    {
       day: string,
       open: number,
       close: number,
       high: number,
       low: number,
       volume: number
-    ],
+    },
     ...
-  },
+  ],
   ...
 }
 ```
