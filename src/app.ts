@@ -86,6 +86,31 @@ function tradierOptionsChain(symbol: string, expiration: string, api_key: string
 }
 
 /**
+ * Get historical data for the given symbol
+ */
+function tradierHistorical(symbol: string, days: number, api_key: string, callback: (status: number, data: any) => void) {
+  const end: number = Date.now();
+  const start: number = end - (days * 86400000);
+  const endString: string = (new Date(end)).toISOString().split("T")[0];
+  const startString: string = (new Date(start)).toISOString().split("T")[0];
+  var interval: string = "daily";
+  if (days > 365) {
+    interval = "weekly";
+  }
+  fetchTradierJSON('https://sandbox.tradier.com/v1/markets/history?symbol=' + symbol + "&start=" + startString + "&end=" + endString + "&interval=" + interval, api_key, (trdStat: number, trdData: any) => {
+    if (trdStat == 200) {
+      if (trdData.history != null && trdData.history.day != null) {
+        callback(200, {historical: trdData.history.day});
+      } else {
+        callback(500, {success: false, message: "Error fetching historical data.", error: "ERR_HISTORICAL_FETCH", details: trdData});
+      }
+    } else {
+      callback(trdStat, trdData);
+    }
+  });
+}
+
+/**
  * Get options chain for the given symbol at the specified expiration date.
  */
 function tradierSymbolQuote(symbol: string, api_key: string, callback: (status: number, data: any) => void) {
@@ -119,7 +144,7 @@ function tradierSymbolQuote(symbol: string, api_key: string, callback: (status: 
  * Doing this allows for us to change the data source without breaking the whole
  * program or requiring a massive rewrite.
  */
-function formatChain(data: any[], quote: any) {
+function formatChain(data: any[], quote: any, histData: any) {
   // lookup contains contract IDs indexed by date and strike
   // contracts contains data for each individual contract
 
@@ -140,7 +165,8 @@ function formatChain(data: any[], quote: any) {
     },
     quote: quote,
     fetch_date: fetch_date,
-    spot_price: spot_price
+    spot_price: spot_price,
+    historical: histData
   };
 
   for (var index in data) {
@@ -267,6 +293,58 @@ function calculateInterestEquivalent(delta: number, exp_millis: number, fetch_mi
 }
 
 /**
+ * Ensure symbol is preserved when fetching historical data.
+ * Useful for doing simultaneous callbacks
+ */
+function tradierHistoricalPreserveSymbol(symbol: string, duration: number, api_key: string, callback: any) {
+  tradierHistorical(symbol, duration, api_key, (stat: number, data: any) => {
+    callback(symbol, stat, data);
+  })
+}
+
+/**
+ * Retrieve only historical data for one or more symbols
+ */
+app.post('/api/historical', (req, res) => {
+  var body: any = req.body;
+  // validate parameters
+  if (body.symbols != null && body.api_key != null && body.duration != null && !isNaN(body.duration)) {
+    var responseCount: number = 0;
+    var didFail: boolean = false;
+    var result: any = {
+
+    };
+
+    for (var symbol of body.symbols) {
+      tradierHistoricalPreserveSymbol(symbol, body.duration, body.api_key, (histSymbol: string, histStatus: number, histData: any) => {
+        if (histStatus == 200) {
+          result[histSymbol] = histData.historical;
+        } else {
+          didFail = true;
+          res.status(histStatus);
+          res.json(histData);
+        }
+        responseCount += 1
+
+        if (responseCount == body.symbols.length && !didFail) {
+          res.status(200);
+          res.json(result);
+        }
+      });
+    }
+
+  } else { // failed request
+    res.status(400);
+    res.json({"success": false, "message": "Missing parameters.", "error": "ERR_MISSING_PARAMS", details: {
+      "symbols exists": body.symbols != null,
+      "api_key exists": body.api_key != null,
+      "duration exists": body.duration != null,
+      "duration is number": !isNaN(body.duration)
+    }});
+  }
+});
+
+/**
  * Retrieve entire options chain for a specified symbol
  */
 app.post('/api/options_chain', (req, res) => {
@@ -277,54 +355,62 @@ app.post('/api/options_chain', (req, res) => {
 
     tradierSymbolQuote(body.symbol, body.api_key, (quoteStatus: number, quoteData: any) => {
       if (quoteStatus == 200) {
-        // get all expiration dates
-        tradierExpirations(body.symbol, body.api_key, (status: number, data: any) => {
-          if (status == 200 && data.expirations != null) {
-            var responseCount: number = 0;
-            for (var index in data.expirations) {
-              var expDate: string = data.expirations[index];
-              tradierOptionsChain(body.symbol, expDate, body.api_key, (ocStat: number, ocData: any) => {
+        tradierHistorical(body.symbol, 730, body.api_key, (histStatus: number, histData: any) => {
+          if (histStatus == 200) {
+            // get all expiration dates
+            tradierExpirations(body.symbol, body.api_key, (status: number, data: any) => {
+              if (status == 200 && data.expirations != null) {
+                var responseCount: number = 0;
+                for (var index in data.expirations) {
+                  var expDate: string = data.expirations[index];
+                  tradierOptionsChain(body.symbol, expDate, body.api_key, (ocStat: number, ocData: any) => {
 
-                // if successful, add data to output
-                // otherwise, throw an error
-                if (ocStat == 200) {
-                  responseCount += 1;
-                  //allContracts.concat(ocData.chain);
-                  allContracts[ocData.expiration] = ocData.chain;
-                } else {
-                  res.status(500);
-                  res.json({success: false, message: "Error fetching options chain.", error: "ERR_OPTIONSCHAIN_FETCH", details: ocData})
-                }
-
-                // all options chain fetches were successful; return full chain
-                if (responseCount == Object.keys(data.expirations).length) {
-
-                  // Arrage contracts in order of date
-                  // https://www.w3docs.com/snippets/javascript/how-to-sort-javascript-object-by-key.html
-                  allContracts = Object.keys(allContracts).sort().reduce(function (result: any, key: string) {
-                    result[key] = allContracts[key];
-                    return result;
-                  }, {});
-
-                  /**/
-                  var flattenedContracts: any[] = [];
-                  for (var expInd in allContracts) {
-                    for (var conInd in allContracts[expInd]) {
-                      flattenedContracts.push(allContracts[expInd][conInd]);
+                    // if successful, add data to output
+                    // otherwise, throw an error
+                    if (ocStat == 200) {
+                      responseCount += 1;
+                      //allContracts.concat(ocData.chain);
+                      allContracts[ocData.expiration] = ocData.chain;
+                    } else {
+                      res.status(500);
+                      res.json({success: false, message: "Error fetching options chain.", error: "ERR_OPTIONSCHAIN_FETCH", details: ocData})
                     }
-                  }
-                  /**/
 
-                  res.status(200);
-                  res.json(formatChain(flattenedContracts, quoteData));
+                    // all options chain fetches were successful; return full chain
+                    if (responseCount == Object.keys(data.expirations).length) {
+
+                      // Arrage contracts in order of date
+                      // https://www.w3docs.com/snippets/javascript/how-to-sort-javascript-object-by-key.html
+                      allContracts = Object.keys(allContracts).sort().reduce(function (result: any, key: string) {
+                        result[key] = allContracts[key];
+                        return result;
+                      }, {});
+
+                      /**/
+                      var flattenedContracts: any[] = [];
+                      for (var expInd in allContracts) {
+                        for (var conInd in allContracts[expInd]) {
+                          flattenedContracts.push(allContracts[expInd][conInd]);
+                        }
+                      }
+                      /**/
+
+                      res.status(200);
+                      res.json(formatChain(flattenedContracts, quoteData, histData.historical));
+                    }
+                  });
                 }
-              });
-            }
-          } else { // failed request
-            res.status(status);
-            res.json(data);
+              } else { // failed request
+                res.status(status);
+                res.json(data);
+              }
+            });
+          } else {
+            res.status(histStatus);
+            res.json(histData);
           }
         });
+
       } else {
         res.status(quoteStatus);
         res.json(quoteData);
@@ -333,7 +419,10 @@ app.post('/api/options_chain', (req, res) => {
 
   } else { // failed request
     res.status(400);
-    res.json({"success": false, "message": "Missing parameters.", "error": "ERR_MISSING_PARAMS"});
+    res.json({"success": false, "message": "Missing parameters.", "error": "ERR_MISSING_PARAMS", "details": {
+      "symbol exists": body.symbol != null,
+      "api_key exists": body.api_key != null,
+    }});
   }
 });
 

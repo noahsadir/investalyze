@@ -21,7 +21,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
 import {
-  Contract, OptionsChain
+  Contract, OptionsChain, HistoricalQuote
 } from '../interfaces';
 
 import {
@@ -69,6 +69,7 @@ export function MetricsPane(props: any) {
         chartType={chartType}/>
       <Divider sx={{marginTop: '8px', marginBottom: '8px'}} light/>
       <MetricsPaneContent
+        historical={props.optionsChain.historical}
         data={metricsData}
         spotPrice={props.optionsChain.spot_price}
         metricType={metricType}
@@ -83,7 +84,7 @@ export function MetricsPane(props: any) {
 
 function MetricsPaneContent(props: any) {
 
-  var chartData: MultiChartData = formatChartData(props.data, props.metricType, props.spotPrice);
+  var chartData: MultiChartData = formatChartData(props.data, props.metricType, props.spotPrice, props.historical);
 
   var tableData: TableData = formatTableData(props.data, props.metricType, props.spotPrice);
 
@@ -213,7 +214,7 @@ function buildTable(tableData: any) {
 /**
  * Convert metrics data into format accepted by MultiChart
  */
-function formatChartData(aggregateData: any, metricType: any, spotPrice: number) {
+function formatChartData(aggregateData: any, metricType: any, spotPrice: number, historical: HistoricalQuote[]) {
   var data: MultiChartData = {};
   var date: string;
 
@@ -241,9 +242,18 @@ function formatChartData(aggregateData: any, metricType: any, spotPrice: number)
   } else if (metricType === "implied_move") {
     data.High = [];
     data.Low = [];
+    data.Historical = [];
+
+    const recentQuote: HistoricalQuote = historical[historical.length - 1];
+    data.High.push([Date.parse(recentQuote.date), Math.round(recentQuote.close * 100) / 100]);
+    data.Low.push([Date.parse(recentQuote.date), Math.round(recentQuote.close * 100) / 100]);
     for (date in aggregateData) {
       data.High.push([date, Math.round((spotPrice + aggregateData[date].call.implied_move) * 100) / 100]);
       data.Low.push([date, Math.round((spotPrice - aggregateData[date].call.implied_move) * 100) / 100]);
+    }
+
+    for (var quote of historical) {
+      data.Historical.push([Date.parse(quote.date), Math.round(quote.close * 100) / 100]);
     }
   } else if (metricType === "ntm_implied_volatility") {
     data.Calls = [];

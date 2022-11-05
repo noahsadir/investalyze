@@ -63,7 +63,6 @@ export function MultiChart(props: any) {
     },
     responsive: true,
     maintainAspectRatio: false,
-    animations: null,
     scales: {
       y: {
         type: 'linear',
