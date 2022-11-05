@@ -21,6 +21,8 @@ different contracts.
 
 ### options_chain
 
+Get options chain and related data for a particular equity.
+
 #### Accepts
 ```
 {
@@ -80,6 +82,8 @@ different contracts.
 
 ### historical
 
+Get historical data for symbol over a specified time period.
+
 #### Accepts
 ```
 {
@@ -91,5 +95,18 @@ different contracts.
 
 #### Returns
 ```
-
+{
+  (string): {
+    [
+      day: string,
+      open: number,
+      close: number,
+      high: number,
+      low: number,
+      volume: number
+    ],
+    ...
+  },
+  ...
+}
 ```
