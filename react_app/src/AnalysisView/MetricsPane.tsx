@@ -6,6 +6,8 @@
 
 import React from 'react';
 import '../App.css';
+import { styled, alpha } from '@mui/material/styles';
+import InputBase from '@mui/material/InputBase';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import Typography from '@mui/material/Typography';
@@ -19,6 +21,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
 
 import {
   Contract, OptionsChain, HistoricalQuote
@@ -51,10 +54,11 @@ interface TableData {
  */
 export function MetricsPane(props: any) {
 
-  const metricsData: any = calculateAggregateData(props.optionsChain);
-
   var [chartType, setChartType]: [string, any] = React.useState("line");
   var [metricType, setMetricType]: [string, any] = React.useState("implied_move");
+  var [multiplier, setMultiplier]: [number, any] = React.useState(1);
+
+  const metricsData: any = calculateAggregateData(props.optionsChain, multiplier);
 
   const handleConfigChange = (config: any) => {
     setChartType(config.chart_type);
@@ -65,6 +69,7 @@ export function MetricsPane(props: any) {
     <div style={{display: (props.isVisible ? 'flex' : 'none'), flexFlow: 'column', flexGrow: 1}}>
       <MetricsPaneToolbar
         onConfigChange={handleConfigChange}
+        onMultiplierChange={(mult: number) => setMultiplier(mult)}
         metricType={metricType}
         chartType={chartType}/>
       <Divider sx={{marginTop: '8px', marginBottom: '8px'}} light/>
@@ -117,6 +122,7 @@ function MetricsPaneToolbar(props: any) {
 
   var [chartType, setChartType]: [string, any] = React.useState(props.chartType);
   var [metricType, setMetricType]: [string, any] = React.useState(props.metricType);
+  var [multiplier, setMultiplier]: [string, any] = React.useState("1");
 
   const handleConfigChange = (config: string, value: any) => {
 
@@ -135,29 +141,37 @@ function MetricsPaneToolbar(props: any) {
     props.onConfigChange(newConfig);
   }
 
+  const handleMultiplierChange = (value: any) => {
+    setMultiplier(value);
+
+    if (!isNaN(value) && Number(value) > 0) {
+      props.onMultiplierChange(Number(value));
+    }
+  }
+
   return (
     <div className="hbox-mobile" style={{flexGrow: 0}}>
-      <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '64px', minWidth: '0px', marginTop: '8px'}}>
+      <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', flexFlow: 'column', maxHeight: '72px', minWidth: '0px', marginTop: '8px'}}>
         <div style={{display: 'flex', flexGrow: 0}}>
           <div style={{flexGrow: 1}}></div>
           <Typography sx={{fontSize: '12px', paddingBottom: '12px', flexGrow: 0}}>OPTIONS</Typography>
           <div style={{flexGrow: 1}}></div>
         </div>
         <div style={{display: 'flex', flexGrow: 1}}>
-          <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px', marginRight: '8px'}}>
+          <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', minWidth: '0px', marginRight: '8px'}}>
             <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
               <InputLabel>Chart Type</InputLabel>
-              <Select sx={{height: 32}} label="Chart Type" id="chartTypeSelect" value={chartType}
+              <Select sx={{height: 40}} label="Chart Type" id="chartTypeSelect" value={chartType}
                       onChange={(event: any) => {handleConfigChange("chart_type", event.target.value);}}>
                 <MenuItem value={"bar"}>{"Bar Chart"}</MenuItem>
                 <MenuItem value={"line"}>{"Line Chart"}</MenuItem>
               </Select>
             </FormControl>
           </div>
-          <div style={{flexGrow: 1, flexBasis: 0, display: 'flex', minWidth: '0px'}}>
+          <div style={{flexGrow: 2, flexBasis: 0, display: 'flex', minWidth: '0px', marginRight: '8px'}}>
             <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
               <InputLabel>Metric Type</InputLabel>
-              <Select sx={{height: 32}} label="Metric Type" id="metricTypeSelect" value={metricType}
+              <Select sx={{height: 40}} label="Metric Type" id="metricTypeSelect" value={metricType}
                       onChange={(event: any) => {handleConfigChange("metric_type", event.target.value);}}>
                 <MenuItem value={"implied_move"}>{"Implied Move"}</MenuItem>
                 <MenuItem value={"ntm_implied_volatility"}>{"Implied Volatility"}</MenuItem>
@@ -166,6 +180,11 @@ function MetricsPaneToolbar(props: any) {
                 <MenuItem value={"open_interest_value"}>{"Open Interest Value"}</MenuItem>
                 <MenuItem value={"maximum_pain"}>{"Maximum Pain"}</MenuItem>
               </Select>
+            </FormControl>
+          </div>
+          <div style={{flexGrow: 1, flexBasis: 0, display: ((metricType === "implied_move") ? 'flex' : 'none'), minWidth: '0px'}}>
+            <FormControl sx={{minWidth: '0px', maxWidth: '100%', flexGrow: 1}}>
+              <TextField label="IM Multiplier" size="small" value={multiplier} onChange={(event: any) => {handleMultiplierChange(event.target.value);}}/>
             </FormControl>
           </div>
         </div>
@@ -332,7 +351,7 @@ function formatTableData(aggregateData: any, metricType: any, spotPrice: number)
 /**
  * Calculate metrics for a stock using its options data
  */
-function calculateAggregateData(optionsChain: OptionsChain) {
+function calculateAggregateData(optionsChain: OptionsChain, multiplier: number) {
   var result: any = {};
   for (var date in optionsChain.lookup.byExpiration) {
     var callIDs: string[] = optionsChain.lookup.byExpiration[date].call;
@@ -408,7 +427,7 @@ function calculateAggregateData(optionsChain: OptionsChain) {
       }
     }
 
-    const impliedMove: number = (callData.implied_move + putData.implied_move) * 0.85;
+    const impliedMove: number = (callData.implied_move + putData.implied_move) * 0.85 * multiplier;
     callData.implied_move = impliedMove;
     putData.implied_move = impliedMove;
     callData.maximum_pain = maxPain;
