@@ -11,6 +11,7 @@
  */
 
 import React from 'react';
+import { useCookies } from 'react-cookie';
 import './App.css';
 import { styled, alpha } from '@mui/material/styles';
 import AppBar from '@mui/material/AppBar';
@@ -27,6 +28,9 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
+import Snackbar from '@mui/material/Snackbar';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import {
   OptionsChain
@@ -170,11 +174,21 @@ function App() {
 
   //var optionsChains: {[key: string]: OptionsChain} = {};
 
+  const [cookies, setCookie, removeCookie] = useCookies(['allowCookies', 'preferences']);
+  const [cookiesSnackbarOpen, setCookiesSnackbarOpen] = React.useState(!cookies.allowCookies);
+
+  if (cookies.allowCookies) {
+    if (!cookies.preferences) {
+      setCookie('preferences', {apiKey: ''}, {maxAge: 30000000});
+    }
+  }
+
   const [loadingScreenOpen, setLoadingScreenOpen] = React.useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
+
   const [optionsChains, setOptionsChains]: [{[key: string]: OptionsChain}, any] = React.useState({});
   const [updates, setUpdates] = React.useState(0);
-  const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
-  const [apiKey, setAPIKey] = React.useState("");
+  const [apiKey, setAPIKey] = React.useState((cookies.allowCookies && cookies.preferences) ? cookies.preferences.apiKey : "");
 
   const handleSymbolEntered = (symbol: string) => {
     setLoadingScreenOpen(true);
@@ -195,11 +209,35 @@ function App() {
   const handleSettingsDialogClose = (settings: any) => {
     setSettingsDialogOpen(false);
     setAPIKey(settings.api_key);
+    if (cookies.allowCookies) {
+      setCookie('preferences', {apiKey: settings.api_key}, {maxAge: 30000000});
+    }
   };
 
   const handleSettingsDialogOpen = () => {
     setSettingsDialogOpen(true);
   };
+
+  const handleSettingsCookieToggle = (enabled: boolean) => {
+    if (enabled) {
+      setCookie('allowCookies', true, {maxAge: 30000000});
+    } else {
+      removeCookie('allowCookies');
+      removeCookie('preferences');
+    }
+  }
+
+  const action = (
+    <div>
+      <Button color="secondary" size="small" variant="contained" onClick={() => {setCookie('allowCookies', true, {maxAge: 30000000}); setCookiesSnackbarOpen(false);}}>
+        Accept
+      </Button>
+      <div style={{margin: 0, padding: 0, width: '8px', display: 'inline-block'}}></div>
+      <Button color="secondary" size="small" onClick={() => {setSettingsDialogOpen(true); setCookiesSnackbarOpen(false);}}>
+        Settings
+      </Button>
+    </div>
+  );
 
   return (
     <div className="App" style={{height: '100%', display: 'flex', flexFlow: 'column'}}>
@@ -208,7 +246,12 @@ function App() {
       <Backdrop sx={{zIndex: (theme) => theme.zIndex.drawer + 1}} open={loadingScreenOpen}>
         <CircularProgress color="inherit"/>
       </Backdrop>
-      <SettingsDialog isOpen={settingsDialogOpen} onClose={handleSettingsDialogClose}/>
+      <SettingsDialog onCookieToggle={handleSettingsCookieToggle} cookies={cookies} storedApiKey={apiKey} isOpen={settingsDialogOpen} onClose={handleSettingsDialogClose}/>
+      <Snackbar
+        open={cookiesSnackbarOpen}
+        message="This website uses cookies to store preferences."
+        action={action}
+      />
     </div>
   );
 }
@@ -251,7 +294,7 @@ function MainToolbar(props: any) {
 
 function SettingsDialog(props: any) {
 
-  const [apiKeyField, setAPIKeyField] = React.useState("");
+  const [apiKeyField, setAPIKeyField] = React.useState(props.storedApiKey);
 
   const handleClose = () => {
     props.onClose({
@@ -263,13 +306,20 @@ function SettingsDialog(props: any) {
     setAPIKeyField(event.target.value);
   };
 
+  const handleCookiesSwitchChange = (event: any) => {
+    props.onCookieToggle(!props.cookies.allowCookies);
+  };
+
   return (
     <Dialog open={props.isOpen} onClose={handleClose}>
       <DialogTitle>Settings</DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{paddingBottom: '8px'}}>
         <div style={{display: 'flex'}}>
           <TextField onChange={handleTextInputChange} placeholder={"Tradier API Key"} size={"small"} sx={{minWidth: '128px'}} value={apiKeyField}/>
           <Button href={"https://documentation.tradier.com/brokerage-api"} sx={{marginLeft: '8px'}} variant={"outlined"}>Get Key</Button>
+        </div>
+        <div style={{display: 'flex', marginTop: '8px'}}>
+          <FormControlLabel control={<Switch checked={props.cookies.allowCookies} onChange={handleCookiesSwitchChange}/>} label="Allow Preferences Cookies"/>
         </div>
       </DialogContent>
       <DialogActions>

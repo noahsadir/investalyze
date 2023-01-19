@@ -9,6 +9,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { CookiesProvider } from 'react-cookie';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material/';
@@ -25,7 +26,7 @@ const theme = createTheme({
   palette: {
     mode: mode,
     primary: {
-      main: ((mode === 'dark') ? indigo[200] : indigo[700]),
+      main: indigo[200],
     },
   },
   typography: {
@@ -40,7 +41,9 @@ root.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline enableColorScheme />
-      <App />
+      <CookiesProvider>
+        <App />
+      </CookiesProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

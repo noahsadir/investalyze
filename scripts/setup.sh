@@ -24,6 +24,7 @@ npm install react-plotly.js plotly.js
 npm install react-chartjs-2 chart.js
 npm install date-fns chartjs-adapter-date-fns --save
 npm install black-scholes
+npm install react-cookie
 cd ..
 
 # replace backend config
